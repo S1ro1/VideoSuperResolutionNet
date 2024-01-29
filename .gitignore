@@ -1,3 +1,6 @@
 data    
 .venv
 lightning_logs
+__pycache__
+BP
+wandb

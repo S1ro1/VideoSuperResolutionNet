@@ -114,11 +114,3 @@ class VideoSingleFrameDataset(Dataset):
             "LQ": torchvision.io.read_image(self.lq_frames[idx]) / 255.0,
             "HQ": torchvision.io.read_image(self.hq_frames[idx]) / 255.0
         }
-
-
-if __name__ == "__main__":
-    dataset = VideoSingleFrameDataset("data/REDS/train/train_sharp_bicubic/X4", "data/REDS/train/train_sharp")
-
-    print(len(dataset))
-
-
