@@ -1,16 +1,16 @@
-import wandb
 import torch
-from dataset import VideoSingleFrameDataset
 import lightning as L
 from lightning.pytorch.loggers import WandbLogger
 from torch import nn, optim
+from model_zoo.srresnet import srresnet_x4
 
-torch.set_float32_matmul_precision('high')
+torch.set_float32_matmul_precision('medium')
+
 
 class Model(L.LightningModule):
     def __init__(self):
         super().__init__()
-        self.model = nn.ConvTranspose2d(in_channels=3, out_channels=3, kernel_size=4, stride=4, padding=0)
+        self.model = srresnet_x4()
         self.save_hyperparameters()
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
@@ -33,7 +33,7 @@ class Model(L.LightningModule):
         outputs = self.model(batch["LQ"])
         loss = nn.functional.mse_loss(outputs, batch["HQ"])
         self.log("val/loss", loss, prog_bar=True, logger=True)
-        self.logger.log_image("val/out", [batch["LQ"][0], batch["HQ"][0], outputs[0]], caption=["LQ", "HQ Original", "HQ Prediction"])
+        self.logger.log_image("val/out", [batch["HQ"][0], outputs[0]], caption=["HQ Original", "HQ Prediction"])
         return loss
 
     
@@ -42,18 +42,3 @@ class Model(L.LightningModule):
         return optimizer
 
 
-if __name__ == "__main__":
-    logger = WandbLogger(project="BP")
-
-    dataset = VideoSingleFrameDataset("data/REDS/train/train_sharp_bicubic/X4", "data/REDS/train/train_sharp")
-    val_dataset = VideoSingleFrameDataset("data/REDS/val/val_sharp_bicubic/X4", "data/REDS/val/val_sharp")
-
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=32)
-    val_dataloader = torch.utils.data.DataLoader(val_dataset, batch_size=32)
-
-    model = Model()
-
-    logger.watch(model)
-
-    trainer = L.Trainer(limit_train_batches=100, max_epochs=1, devices=[0, 1], log_every_n_steps=1, logger=logger)
-    trainer.fit(model=model, train_dataloaders=dataloader, val_dataloaders=val_dataloader)
