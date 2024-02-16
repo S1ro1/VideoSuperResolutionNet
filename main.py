@@ -47,6 +47,9 @@ def parse_args():
     parser.add_argument("--learnging-rate", type=float,
                         default=2e-3, help="Learning rate")
 
+    parser.add_argument("--checkpoint-path", type=str,
+                        default=None, help="Path to a checkpoint to load")
+
     return parser.parse_args()
 
 
@@ -67,8 +70,12 @@ def main():
         train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
     val_loader = torch.utils.data.DataLoader(
         val_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
-    model = Model(lr=args.learnging_rate)
-    # logger.watch(model)
+    if args.checkpoint_path:
+        model = Model.load_from_checkpoint(args.checkpoint_path)
+    else:
+        model = Model(lr=args.learnging_rate)
+
+    logger.watch(model)
 
     checkpoint_callback = ModelCheckpoint(
         dirpath=f"checkpoints/{args.project}_{args.name}",
@@ -82,7 +89,6 @@ def main():
         logger=logger,
         check_val_every_n_epoch=args.check_val_every_n_epoch,
         callbacks=[checkpoint_callback],
-        gradient_clip_val=0.5,
         limit_train_batches=args.limit_batches,
         limit_val_batches=args.limit_batches,
     )

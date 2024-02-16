@@ -25,9 +25,9 @@ class Model(L.LightningModule):
             metrics["loss"] = nn.functional.mse_loss(outputs, targets)
         return metrics
 
-    def _log_metrics(self, metrics: dict[str, torch.Tensor], prefix: str) -> None:
+    def _log_metrics(self, metrics: dict[str, torch.Tensor], prefix: str, sync_dist: bool=False) -> None:
         for key, value in metrics.items():
-            self.log(f"{prefix}/{key}", value, prog_bar=True, logger=True)
+            self.log(f"{prefix}/{key}", value, prog_bar=True, logger=True, sync_dist=sync_dist)
 
     def _log_images(self, section: str, images: dict[str, torch.Tensor]) -> None:
         try:
@@ -59,13 +59,13 @@ class Model(L.LightningModule):
     def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         outputs = self.model(batch["LQ"])
         metrics = self._compute_metrics(outputs, batch["HQ"])
-        self._log_metrics(metrics, "val")
+        self._log_metrics(metrics, "val", sync_dist=True)
 
         bilinear = nn.functional.interpolate(
             batch["LQ"], scale_factor=4, mode="bilinear", align_corners=False)
         bilinear_metrics = self._compute_metrics(
             bilinear, batch["HQ"], compute_loss=False)
-        self._log_metrics(bilinear_metrics, "val_upsampled")
+        self._log_metrics(bilinear_metrics, "val_upsampled", sync_dist=True)
 
         self._log_images(
             "val/out", {"HQ": batch["HQ"][0], "HQ Prediction": outputs[0], "Bilinear": bilinear[0]})
