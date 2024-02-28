@@ -56,7 +56,7 @@ def main():
         callbacks=[checkpoint_callback],
         limit_train_batches=training_args["limit_batches"],
         limit_val_batches=training_args["limit_batches"],
-        precision=16,
+        precision=32,
     )
 
     trainer.fit(model=model, datamodule=data_module)

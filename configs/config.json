@@ -1,7 +1,7 @@
 {
     "misc": {
         "project": "BP",
-        "name": "EDVR Test",
+        "name": "EDVR Initial",
         "logger": "wandb",
         "save_top_k": 3
     },
@@ -20,7 +20,7 @@
         "val_high_quality": "/zfs-pool/xsirov00/data/REDS/val/val_sharp",
         "val_low_quality": "/zfs-pool/xsirov00/data/REDS/val/val_sharp_bicubic/X4",
         "num_frames": 5,
-        "batch_size": 4,
+        "batch_size": 2,
         "num_workers": 8
     },
     "training": {
@@ -30,7 +30,7 @@
         "devices": [
             0
         ],
-        "limit_batches": 0.1,
-        "learning_rate": 1e-4
+        "limit_batches": 1.0,
+        "learning_rate": 4e-4
     }
 }

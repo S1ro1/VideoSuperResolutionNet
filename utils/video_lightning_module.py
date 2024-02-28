@@ -31,7 +31,6 @@ class VideoSRLightningModule(L.LightningModule):
 
     def _compute_metrics(self, outputs: torch.Tensor, targets: torch.Tensor, compute_loss: bool = True) -> dict[str, torch.Tensor]:
         metrics = {}
-        print(f"{outputs.shape=}, {targets.shape=}")
         metrics["ssim"] = structural_similarity_index_measure(
             outputs, targets)
         metrics["psnr"] = peak_signal_noise_ratio(outputs, targets)
@@ -76,7 +75,8 @@ class VideoSRLightningModule(L.LightningModule):
         metrics = self._compute_metrics(outputs, batch["HQ"])
         self._log_metrics(metrics, "val", sync_dist=True)
 
-        middle_frame = batch["LQ"] if self.num_frames == 1 else batch["LQ"][:, self.num_frames // 2, :]
+        middle_frame = batch["LQ"] if self.num_frames == 1 else batch["LQ"][:,
+                                                                            self.num_frames // 2, :]
 
         bilinear = nn.functional.interpolate(
             middle_frame, scale_factor=4, mode="bilinear", align_corners=False)
