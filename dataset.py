@@ -23,8 +23,9 @@ class VideoSequenceDataset(Dataset):
         """
         self.lq_sequences = list(Path(lq_dir).iterdir())
         self.hq_sequences = list(Path(hq_dir).iterdir())
-        assert len(self.lq_sequences) == len(self.hq_sequences), "Number of low quality and high quality sequences must be equal."
-    
+        assert len(self.lq_sequences) == len(
+            self.hq_sequences), "Number of low quality and high quality sequences must be equal."
+
     def __len__(self) -> int:
         """Number of sequences in the dataset
 
@@ -50,10 +51,13 @@ class VideoSequenceDataset(Dataset):
         lq_sequence_path = self.lq_sequences[idx]
         hq_sequence_path = self.hq_sequences[idx]
         for lq_frame_path, hq_frame_path in zip(lq_sequence_path.iterdir(), hq_sequence_path.iterdir()):
-            lq_frames.append(torchvision.io.read_image(str(lq_frame_path)) / 255.0)
-            hq_frames.append(torchvision.io.read_image(str(hq_frame_path)) / 255.0)
-        
-        assert len(lq_frames) == len(hq_frames), "Number of low quality and high quality frames must be equal."
+            lq_frames.append(torchvision.io.read_image(
+                str(lq_frame_path)) / 255.0)
+            hq_frames.append(torchvision.io.read_image(
+                str(hq_frame_path)) / 255.0)
+
+        assert len(lq_frames) == len(
+            hq_frames), "Number of low quality and high quality frames must be equal."
         return {
             "LQ": torch.stack(lq_frames),
             "HQ": torch.stack(hq_frames)
@@ -80,7 +84,8 @@ class VideoSingleFrameDataset(Dataset):
         lq_sequences = list(Path(lq_path).iterdir())
         hq_sequences = list(Path(hq_path).iterdir())
 
-        assert len(lq_sequences) == len(hq_sequences), "Number of low quality and high quality sequences must be equal."
+        assert len(lq_sequences) == len(
+            hq_sequences), "Number of low quality and high quality sequences must be equal."
 
         self.lq_frames = []
         self.hq_frames = []
@@ -89,9 +94,10 @@ class VideoSingleFrameDataset(Dataset):
             for lq_frame_path, hq_frame_path in zip(lq_sequence_path.iterdir(), hq_sequence_path.iterdir()):
                 self.lq_frames.append(str(lq_frame_path))
                 self.hq_frames.append(str(hq_frame_path))
-        
-        assert len(self.lq_frames) == len(self.hq_frames), "Number of low quality and high quality frames must be equal."
-    
+
+        assert len(self.lq_frames) == len(
+            self.hq_frames), "Number of low quality and high quality frames must be equal."
+
     def __len__(self) -> int:
         """Number of frames in the dataset
 
@@ -99,7 +105,7 @@ class VideoSingleFrameDataset(Dataset):
             int: Number of frames in the dataset
         """
         return len(self.lq_frames)
-    
+
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         """__getitem__ method of VideoSingleFrameDataset.
 
@@ -113,4 +119,54 @@ class VideoSingleFrameDataset(Dataset):
         return {
             "LQ": torchvision.io.read_image(self.lq_frames[idx]) / 255.0,
             "HQ": torchvision.io.read_image(self.hq_frames[idx]) / 255.0
+        }
+
+
+class VideoMultiFrameDataset(Dataset):
+    def __init__(self, lq_path: str, hq_path, num_frames: int):
+        self.num_frames = num_frames
+
+        lq_sequences = list(Path(lq_path).iterdir())
+        hq_sequences = list(Path(hq_path).iterdir())
+
+        assert len(lq_sequences) == len(
+            hq_sequences), "Number of low quality and high quality sequences must be equal."
+
+        self.lq_paths = []
+        self.hq_paths = []
+
+        for lq_sequence_path, hq_sequence_path in zip(lq_sequences, hq_sequences):
+            lq_frame_paths = sorted(list(lq_sequence_path.iterdir()))
+            hq_frame_paths = sorted(list(hq_sequence_path.iterdir()))
+
+            lq_frame_sequences = [lq_frame_paths[i:i + self.num_frames]
+                                  for i in range(len(lq_frame_paths) - self.num_frames + 1)]
+            hq_frame_sequences = [hq_frame_paths[i:i + self.num_frames]
+                                  for i in range(len(hq_frame_paths) - self.num_frames + 1)]
+
+            self.lq_paths.extend(lq_frame_sequences)
+            self.hq_paths.extend(hq_frame_sequences)
+
+        assert len(self.lq_paths) == len(
+            self.hq_paths), "Number of low quality and high quality frames must be equal."
+
+    def __len__(self) -> int:
+        return len(self.lq_paths)
+
+    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
+        lq_frame_paths = self.lq_paths[idx]
+        hq_frame_paths = self.hq_paths[idx]
+
+        lq_frames = []
+        hq_frames = []
+
+        for lq_frame_path, hq_frame_path in zip(lq_frame_paths, hq_frame_paths):
+            lq_frames.append(torchvision.io.read_image(
+                str(lq_frame_path)) / 255.0)
+            hq_frames.append(torchvision.io.read_image(
+                str(hq_frame_path)) / 255.0)
+
+        return {
+            "LQ": torch.stack(lq_frames),
+            "HQ": torch.stack(hq_frames)
         }

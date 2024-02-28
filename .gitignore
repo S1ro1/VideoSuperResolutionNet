@@ -1,7 +1,10 @@
 data    
-.venv
+.venv*
 lightning_logs
 __pycache__
 BP
 wandb
 checkpoints
+scripts/RAFT
+.vscode
+*.ipynb

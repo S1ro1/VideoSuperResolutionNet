@@ -19,4 +19,4 @@ python $CWD/main.py \
     --project BP --name $NAME --logger-type wandb \
     --train-hq $CWD/data/REDS/train/train_sharp --train-lq $CWD/data/REDS/train/train_sharp_bicubic/X4 \
     --val-hq $CWD/data/REDS/val/val_sharp --val-lq $CWD/data/REDS/val/val_sharp_bicubic/X4 \
-    --batch-size 8 --num-workers 32 --devices 0  --save-top-k 3 $EXTRA_ARGS --devices 0 3
+    --batch-size 8 --num-workers 32 --devices 0  --save-top-k 3 $EXTRA_ARGS --devices 3
