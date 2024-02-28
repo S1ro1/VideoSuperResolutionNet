@@ -1,6 +1,6 @@
 
 import json
-from typing import Any
+from typing import Any, List
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers.logger import Logger
 import lightning as L
@@ -28,37 +28,43 @@ def _setup_logger(args: dict[str, Any]) -> Logger:
     return logger
 
 
+def _setup_callbacks(args: dict[str, Any]) -> List[L.Callback]:
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=f"checkpoints/{args['project']}_{args['name']}",
+        save_top_k=args["save_top_k"], save_last=True, verbose=True,
+        monitor="val/loss", mode="min")
+
+    return [checkpoint_callback]
+
+
+def _setup_trainer(args: dict[str, Any], logger: Logger, callbacks: List[L.Callback]) -> L.Trainer:
+
+    return L.Trainer(
+        max_epochs=args["num_epochs"],
+        devices=args["devices"],
+        log_every_n_steps=args["log_every_n_steps"],
+        logger=logger,
+        check_val_every_n_epoch=args["check_val_every_n_epochs"],
+        callbacks=callbacks,
+        limit_train_batches=args["limit_batches"],
+        limit_val_batches=args["limit_batches"],
+        precision=32,
+    )
+
+
 def main():
     args = parse_args()
     with open(args.config, "r") as f:
         args = json.load(f)
 
     logger = _setup_logger(args["misc"])
-
+    logger.log_hyperparams(args)
     data_module = VideoLightningDataModule(args["datamodule"])
     model = VideoSRLightningModule(
         args["lightningmodule"], num_frames=args["datamodule"]["num_frames"])
-
     logger.watch(model)
-
-    checkpoint_callback = ModelCheckpoint(
-        dirpath=f"checkpoints/{args['misc']['project']}_{args['misc']['name']}",
-        save_top_k=args["misc"]["save_top_k"], save_last=True, verbose=True,
-        monitor="val/loss", mode="min")
-
-    training_args = args["training"]
-    trainer = L.Trainer(
-        max_epochs=training_args["num_epochs"],
-        devices=training_args["devices"],
-        log_every_n_steps=training_args["log_every_n_steps"],
-        logger=logger,
-        check_val_every_n_epoch=training_args["check_val_every_n_epochs"],
-        callbacks=[checkpoint_callback],
-        limit_train_batches=training_args["limit_batches"],
-        limit_val_batches=training_args["limit_batches"],
-        precision=32,
-    )
-
+    trainer = _setup_trainer(
+        args["training"], logger, _setup_callbacks(args["misc"]))
     trainer.fit(model=model, datamodule=data_module)
 
 
