@@ -1,100 +1,65 @@
 
-from dataset import VideoSingleFrameDataset
-import torch
-import torch.utils.data
+import json
+from typing import Any
 from lightning.pytorch.callbacks import ModelCheckpoint
-
+from lightning.pytorch.loggers.logger import Logger
 import lightning as L
-
-from model import Model
 import argparse
+
+from utils.video_lightning_module import VideoSRLightningModule
+from utils.video_data_module import VideoLightningDataModule
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a model")
-    parser.add_argument("--project", type=str, help="Logger project name.")
-    parser.add_argument("--name", type=str, help="Logger experiment name.")
-    parser.add_argument("--logger-type", type=str, default="wandb",
-                        help="Logger type (wandb, tensorboard)")
-
-    parser.add_argument("--train-hq", type=str, required=True,
-                        help="Path to the high quality training dataset")
-    parser.add_argument("--train-lq", type=str, required=True,
-                        help="Path to the low quality training dataset")
-    parser.add_argument("--val-hq", type=str, required=True,
-                        help="Path to the high quality validation dataset")
-    parser.add_argument("--val-lq", type=str, required=True,
-                        help="Path to the low quality validation dataset")
-    parser.add_argument("--batch-size", type=int, default=4, help="Batch size")
-    parser.add_argument("--num-workers", type=int, default=6,
-                        help="Number of workers for the dataloader")
-
-    parser.add_argument("--devices", type=int, nargs="+",
-                        default=[0], help="Devices to use for training")
-
-    parser.add_argument("--epochs", type=int, default=100,
-                        help="Number of epochs to train")
-    parser.add_argument("--log-every-n-steps", type=int,
-                        default=50, help="Log every n steps")
-    parser.add_argument("--check-val-every-n-epoch", type=int,
-                        default=5, help="Check validation every n epochs")
-    parser.add_argument("--save-top-k", type=int,
-                        default=3, help="Save top k models")
-
-    parser.add_argument("--limit-batches", type=float, default=1.0,
-                        help="Limit the number of batches to use for training and validation")
-
-    parser.add_argument("--learnging-rate", type=float,
-                        default=2e-3, help="Learning rate")
-
-    parser.add_argument("--checkpoint-path", type=str,
-                        default=None, help="Path to a checkpoint to load")
-
+    parser.add_argument("--config", type=str, help="Path to config file")
     return parser.parse_args()
+
+
+def _setup_logger(args: dict[str, Any]) -> Logger:
+    if args["logger"] == "wandb":
+        from lightning.pytorch.loggers import WandbLogger
+        logger = WandbLogger(
+            project=args["project"], name=args["name"])
+    elif args["logger"] == "tensorboard":
+        from lightning.pytorch.loggers import TensorBoardLogger
+        logger = TensorBoardLogger(save_dir="logs", name=args["name"])
+
+    return logger
 
 
 def main():
     args = parse_args()
+    with open(args.config, "r") as f:
+        args = json.load(f)
 
-    if args.logger_type == "wandb":
-        from lightning.pytorch.loggers import WandbLogger
-        logger = WandbLogger(project=args.project, name=args.name)
-    elif args.logger_type == "tensorboard":
-        from lightning.pytorch.loggers import TensorBoardLogger
-        logger = TensorBoardLogger(save_dir="logs", name=args.name)
+    logger = _setup_logger(args["misc"])
 
-    train_dataset = VideoSingleFrameDataset(args.train_lq, args.train_hq)
-    val_dataset = VideoSingleFrameDataset(args.val_lq, args.val_hq)
-
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=False)
-    if args.checkpoint_path:
-        model = Model.load_from_checkpoint(args.checkpoint_path)
-    else:
-        model = Model(lr=args.learnging_rate)
+    data_module = VideoLightningDataModule(args["datamodule"])
+    model = VideoSRLightningModule(
+        args["lightningmodule"], num_frames=args["datamodule"]["num_frames"])
 
     logger.watch(model)
 
     checkpoint_callback = ModelCheckpoint(
-        dirpath=f"checkpoints/{args.project}_{args.name}",
-        save_top_k=args.save_top_k, save_last=True, verbose=True,
+        dirpath=f"checkpoints/{args['misc']['project']}_{args['misc']['name']}",
+        save_top_k=args["misc"]["save_top_k"], save_last=True, verbose=True,
         monitor="val/loss", mode="min")
 
+    training_args = args["training"]
     trainer = L.Trainer(
-        max_epochs=args.epochs,
-        devices=args.devices,
-        log_every_n_steps=args.log_every_n_steps,
+        max_epochs=training_args["num_epochs"],
+        devices=training_args["devices"],
+        log_every_n_steps=training_args["log_every_n_steps"],
         logger=logger,
-        check_val_every_n_epoch=args.check_val_every_n_epoch,
+        check_val_every_n_epoch=training_args["check_val_every_n_epochs"],
         callbacks=[checkpoint_callback],
-        limit_train_batches=args.limit_batches,
-        limit_val_batches=args.limit_batches,
+        limit_train_batches=training_args["limit_batches"],
+        limit_val_batches=training_args["limit_batches"],
+        precision=16,
     )
 
-    trainer.fit(model=model, train_dataloaders=train_loader,
-                val_dataloaders=val_loader)
+    trainer.fit(model=model, datamodule=data_module)
 
 
 if __name__ == "__main__":

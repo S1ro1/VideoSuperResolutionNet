@@ -1,0 +1,36 @@
+{
+    "misc": {
+        "project": "BP",
+        "name": "EDVR Test",
+        "logger": "wandb",
+        "save_top_k": 3
+    },
+    "lightningmodule": {
+        "lr": 1e-4,
+        "model_name": "EDVR",
+        "model_args": {
+            "num_frame": 5,
+            "num_feat": 128,
+            "num_reconstruct_block": 40
+        }
+    },
+    "datamodule": {
+        "train_high_quality": "/zfs-pool/xsirov00/data/REDS/train/train_sharp",
+        "train_low_quality": "/zfs-pool/xsirov00/data/REDS/train/train_sharp_bicubic/X4",
+        "val_high_quality": "/zfs-pool/xsirov00/data/REDS/val/val_sharp",
+        "val_low_quality": "/zfs-pool/xsirov00/data/REDS/val/val_sharp_bicubic/X4",
+        "num_frames": 5,
+        "batch_size": 4,
+        "num_workers": 8
+    },
+    "training": {
+        "num_epochs": 100,
+        "log_every_n_steps": 50,
+        "check_val_every_n_epochs": 1,
+        "devices": [
+            0
+        ],
+        "limit_batches": 0.1,
+        "learning_rate": 1e-4
+    }
+}

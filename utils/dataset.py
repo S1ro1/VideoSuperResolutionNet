@@ -65,7 +65,7 @@ class VideoSequenceDataset(Dataset):
 
 
 class VideoSingleFrameDataset(Dataset):
-    def __init__(self, lq_path: str, hq_path: str):
+    def __init__(self, lq_path: str, hq_path: str, *_args, **_kwargs):
         """Dataset for single frame training,
         expects directory structure to be:
         lq_path:
@@ -141,7 +141,8 @@ class VideoMultiFrameDataset(Dataset):
 
             lq_frame_sequences = [lq_frame_paths[i:i + self.num_frames]
                                   for i in range(len(lq_frame_paths) - self.num_frames + 1)]
-            hq_frame_sequences = [hq_frame_paths[i:i + self.num_frames]
+
+            hq_frame_sequences = [hq_frame_paths[i + self.num_frames // 2]
                                   for i in range(len(hq_frame_paths) - self.num_frames + 1)]
 
             self.lq_paths.extend(lq_frame_sequences)
@@ -155,18 +156,15 @@ class VideoMultiFrameDataset(Dataset):
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
         lq_frame_paths = self.lq_paths[idx]
-        hq_frame_paths = self.hq_paths[idx]
+        hq_frame_path = self.hq_paths[idx]
 
         lq_frames = []
-        hq_frames = []
 
-        for lq_frame_path, hq_frame_path in zip(lq_frame_paths, hq_frame_paths):
+        for lq_frame_path in lq_frame_paths:
             lq_frames.append(torchvision.io.read_image(
                 str(lq_frame_path)) / 255.0)
-            hq_frames.append(torchvision.io.read_image(
-                str(hq_frame_path)) / 255.0)
 
         return {
             "LQ": torch.stack(lq_frames),
-            "HQ": torch.stack(hq_frames)
+            "HQ": torchvision.io.read_image(str(hq_frame_path)) / 255.0
         }
