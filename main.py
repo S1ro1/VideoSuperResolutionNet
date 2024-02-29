@@ -60,12 +60,13 @@ def main():
     logger = _setup_logger(args["misc"])
     logger.log_hyperparams(args)
     data_module = VideoLightningDataModule(args["datamodule"])
-    model = VideoSRLightningModule(
+    lightning_module = VideoSRLightningModule(
         args["lightningmodule"], num_frames=args["datamodule"]["num_frames"])
-    logger.watch(model)
+
+    logger.watch(lightning_module)
     trainer = _setup_trainer(
         args["training"], logger, _setup_callbacks(args["misc"]))
-    trainer.fit(model=model, datamodule=data_module)
+    trainer.fit(model=lightning_module, datamodule=data_module)
 
 
 if __name__ == "__main__":
