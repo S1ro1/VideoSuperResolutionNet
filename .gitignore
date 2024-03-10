@@ -1,5 +1,6 @@
 data    
 .venv*
+.ruff_cache
 lightning_logs
 __pycache__
 BP
