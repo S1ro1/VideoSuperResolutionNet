@@ -1,7 +1,6 @@
-
 import json
 from typing import Any, List
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, Callback
 from lightning.pytorch.loggers.logger import Logger
 import lightning as L
 import argparse
@@ -19,11 +18,14 @@ def parse_args():
 def _setup_logger(args: dict[str, Any]) -> Logger:
     if args["logger"] == "wandb":
         from lightning.pytorch.loggers import WandbLogger
-        logger = WandbLogger(
-            project=args["project"], name=args["name"])
+
+        logger = WandbLogger(project=args["project"], name=args["name"])
     elif args["logger"] == "tensorboard":
         from lightning.pytorch.loggers import TensorBoardLogger
+
         logger = TensorBoardLogger(save_dir="logs", name=args["name"])
+    else:
+        raise ValueError(f"Unknown logger: {args['logger']}")
 
     return logger
 
@@ -31,14 +33,17 @@ def _setup_logger(args: dict[str, Any]) -> Logger:
 def _setup_callbacks(args: dict[str, Any]) -> List[L.Callback]:
     checkpoint_callback = ModelCheckpoint(
         dirpath=f"checkpoints/{args['project']}_{args['name']}",
-        save_top_k=args["save_top_k"], save_last=True, verbose=True,
-        monitor="val/loss", mode="min")
+        save_top_k=args["save_top_k"],
+        save_last=True,
+        verbose=True,
+        monitor="val/loss",
+        mode="min",
+    )
 
     return [checkpoint_callback]
 
 
 def _setup_trainer(args: dict[str, Any], logger: Logger, callbacks: List[L.Callback]) -> L.Trainer:
-
     return L.Trainer(
         max_epochs=args["num_epochs"],
         devices=args["devices"],
@@ -61,12 +66,16 @@ def main():
     logger.log_hyperparams(args)
     data_module = VideoLightningDataModule(args["datamodule"])
     lightning_module = VideoSRLightningModule(
-        args["lightningmodule"], num_frames=args["datamodule"]["num_frames"])
+        args["lightningmodule"], num_frames=args["datamodule"]["num_frames"], padding=args["transforms"]["pad"]
+    )
 
     logger.watch(lightning_module)
-    trainer = _setup_trainer(
-        args["training"], logger, _setup_callbacks(args["misc"]))
-    trainer.fit(model=lightning_module, datamodule=data_module)
+    trainer = _setup_trainer(args["training"], logger, _setup_callbacks(args["misc"]))
+
+    if args["training"].get("ckpt_path") is not None:
+        trainer.fit(model=lightning_module, datamodule=data_module, ckpt_path=args["training"]["ckpt_path"])
+    else:
+        trainer.fit(model=lightning_module, datamodule=data_module)
 
 
 if __name__ == "__main__":
