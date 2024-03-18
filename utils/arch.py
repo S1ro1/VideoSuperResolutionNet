@@ -25,9 +25,10 @@ def make_layer(layer, num_layers, *args, **kwargs):
 
 class BottleneckResidualBlock(nn.Module):
     def __init__(self, num_features):
-        self.conv1 = nn.Conv2d(num_features, num_features, 1, 1, 1)
+        super(BottleneckResidualBlock, self).__init__()
+        self.conv1 = nn.Conv2d(num_features, num_features, kernel_size=1, stride=1)
         self.conv2 = nn.Conv2d(num_features, num_features, 3, 1, 1)
-        self.conv3 = nn.Conv2d(num_features, num_features, 1, 1, 1)
+        self.conv3 = nn.Conv2d(num_features, num_features, kernel_size=1, stride=1)
 
     def forward(self, x):
         i = x
