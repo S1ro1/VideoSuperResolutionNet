@@ -111,7 +111,7 @@ class VideoSingleFrameDataset(Dataset):
 
 
 class VideoMultiFrameDataset(Dataset):
-    def __init__(self, lq_path: str, hq_path: str, num_frames: int):
+    def __init__(self, lq_path: str, hq_path: str, num_frames: int, *_args, **_kwargs):
         """Dataset for multi frame training,
         expects directory structure to be:
         lq_path:
@@ -177,11 +177,16 @@ class VideoMultiFrameDataset(Dataset):
         for lq_frame_path in lq_frame_paths:
             lq_frames.append(torchvision.io.read_image(str(lq_frame_path)) / 255.0)
 
-        return {"LQ": torch.stack(lq_frames), "HQ": torchvision.io.read_image(str(hq_frame_path)) / 255.0}
+        lq_frames = torch.stack(lq_frames)
+        hq_frame = torchvision.io.read_image(str(hq_frame_path)) / 255.0
+        if self.transforms is not None:
+            lq_frames = self.transforms(lq_frames)
+
+        return {"LQ": lq_frames, "HQ": hq_frame}
 
 
 class VideoMultiFrameOFDataset(Dataset):
-    def __init__(self, lq_path: str, hq_path: str, of_path: str, num_frames: int = 3):
+    def __init__(self, lq_path: str, hq_path: str, of_path: str, num_frames: int = 3, *_args, **_kwargs):
         """Dataset for multi frame training with optical flow,
         expects directory structure to be:
         lq_path:
@@ -209,6 +214,7 @@ class VideoMultiFrameOFDataset(Dataset):
             NotImplementedError: If num_frames is not 3
         """
         self.num_frames = num_frames
+
         if self.num_frames != 3:
             raise NotImplementedError("Only 3 frames are supported for now.")
 
@@ -271,8 +277,8 @@ class VideoMultiFrameOFDataset(Dataset):
         for lq_frame_path in lq_frame_paths:
             lq_frames.append(torchvision.io.read_image(str(lq_frame_path)) / 255.0)
 
-        of_down = torch.load(of_down_path).squeeze(0)
-        of_up = torch.load(of_up_path).squeeze(0)
+        of_down = torch.load(of_down_path, map_location='cpu').squeeze(0)
+        of_up = torch.load(of_up_path, map_location='cpu').squeeze(0)
 
         # Crop optical flow to match the size of the frames (RAFT pads the image symmetrically in sintel mode)
         hd = of_up.shape[-2] - lq_frames[0].shape[-2]
@@ -285,9 +291,8 @@ class VideoMultiFrameOFDataset(Dataset):
             of_down = of_down[..., wd // 2 : -wd // 2]
             of_up = of_up[..., wd // 2 : -wd // 2]
 
-        return {
-            "LQ": torch.stack(lq_frames),
-            "HQ": torchvision.io.read_image(str(hq_frame_path)) / 255.0,
-            "OF_down": of_down,
-            "OF_up": of_up,
-        }
+        lq_frames = torch.stack(lq_frames)
+        hq_frame = torchvision.io.read_image(str(hq_frame_path)) / 255.0
+        ofs = torch.stack([of_down, of_up])
+
+        return {"LQ": lq_frames, "HQ": hq_frame, "OF": ofs}
