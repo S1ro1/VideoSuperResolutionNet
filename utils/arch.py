@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import segmentation_models_pytorch as smp
 from mmcv.ops import DeformConv2d
-from typing import List
+from typing import List, Optional
 import inspect
 
 
@@ -14,6 +14,27 @@ def make_conv_relu(in_channels, out_channels, kernel_size=3, stride=1, padding=1
         convs.append(nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding))
         convs.append(nn.ReLU(inplace=True))
     return nn.Sequential(*convs)
+
+
+def make_layer(layer, num_layers, *args, **kwargs):
+    layers = []
+    for _ in range(num_layers):
+        layers.append(layer(*args, **kwargs))
+    return nn.Sequential(*layers)
+
+
+class BottleneckResidualBlock(nn.Module):
+    def __init__(self, num_features):
+        self.conv1 = nn.Conv2d(num_features, num_features, 1, 1, 1)
+        self.conv2 = nn.Conv2d(num_features, num_features, 3, 1, 1)
+        self.conv3 = nn.Conv2d(num_features, num_features, 1, 1, 1)
+
+    def forward(self, x):
+        i = x
+        out = F.relu(self.conv1(x))
+        out = F.relu(self.conv2(out))
+        out = self.conv3(out)
+        return F.relu(out + i)
 
 
 class DConvMotionCompensation(nn.Module):
@@ -116,7 +137,7 @@ class UpsampleBlock(nn.Module):
 
 
 class SuperResolutionUnet(smp.Unet):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, num_reconstruction_blocks: Optional[int] = None, *args, **kwargs):
         super(SuperResolutionUnet, self).__init__(*args, **kwargs)
 
         sig = inspect.signature(smp.Unet.__init__)
@@ -135,6 +156,11 @@ class SuperResolutionUnet(smp.Unet):
             center=True if default_values["encoder_name"].startswith("vgg") else False,
             attention_type=default_values["decoder_attention_type"],
         )
+        if num_reconstruction_blocks is not None:
+            self.reconstruction_blocks = make_layer(BottleneckResidualBlock, num_reconstruction_blocks, out_channels)
+        else:
+            self.reconstruction_blocks = nn.Identity()
+
         self.upsample = UpsampleBlock(out_channels)
 
     def forward(self, x: dict):
@@ -153,6 +179,7 @@ class SuperResolutionUnet(smp.Unet):
 
         out = self.middle(new_features, of)
         out = self.decoder(*out)
+        out = self.reconstruction_blocks(out)
         out = self.upsample(out)
         return out
 
