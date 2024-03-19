@@ -39,26 +39,40 @@ class BottleneckResidualBlock(nn.Module):
 
 
 class DConvMotionCompensation(nn.Module):
-    def __init__(self, in_channels, out_channels, num_scales=3, deformable_groups=1):
+    def __init__(self, in_channels, out_channels, kernel_size=3, num_scales=3, deformable_groups=1, use_convs=True):
         super(DConvMotionCompensation, self).__init__()
-        self.deformable_groups = deformable_groups
-        self.dconv = DeformConv2d(in_channels, out_channels, 3, stride=1, padding=1, deformable_groups=deformable_groups)
-        self.convs = make_conv_relu(in_channels, in_channels, num_scales=num_scales)
-        self.offset_conv = nn.Conv2d(2, 3 * 3 * self.deformable_groups * 2, 1, 1)
+        if use_convs:
+            self.convs = make_conv_relu(in_channels, in_channels, num_scales=num_scales)
+        else:
+            self.convs = nn.Identity()
+
+        self.offset_conv = nn.Conv2d(2, kernel_size * kernel_size * deformable_groups * 2, 1, 1)
+        self.dconv = DeformConv2d(
+            in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=1, deformable_groups=deformable_groups
+        )
 
     def forward(self, x: torch.Tensor, of: torch.Tensor):
         x = self.convs(x)
+        x = x.contiguous()
         of = self.offset_conv(of)
         out = self.dconv(x, of)
         return out
 
 
 class MotionCompensationFeatureFusion(nn.Module):
-    def __init__(self, in_channels, mid_channels, out_channels, num_scales=3, center_frame_idx=1):
+    def __init__(self, in_channels, mid_channels, out_channels, use_convs: bool = True, num_scales=3, center_frame_idx=1):
         super(MotionCompensationFeatureFusion, self).__init__()
-        self.ref_convs = make_conv_relu(in_channels, in_channels, num_scales=num_scales)
-        self.end_ref_conv = nn.Conv2d(in_channels, mid_channels, 3, 1, 1)
-        self.neighboring_blocks = DConvMotionCompensation(in_channels, mid_channels, num_scales=num_scales)
+        if use_convs:
+            ref_convs = make_conv_relu(in_channels, in_channels, num_scales=num_scales)
+            end_ref_conv = nn.Conv2d(in_channels, mid_channels, 3, 1, 1)
+            self.ref_convs = nn.Sequential(*ref_convs, end_ref_conv)
+        else:
+            assert in_channels == mid_channels, "If not using convs, in_channels must be equal to mid_channels."
+            self.ref_convs = nn.Identity()
+
+        self.neighboring_blocks = DConvMotionCompensation(
+            in_channels=in_channels, out_channels=mid_channels, num_scales=num_scales, use_convs=use_convs
+        )
         self.center_frame_idx = center_frame_idx
 
         self.fusion_block = nn.Sequential(
@@ -71,7 +85,7 @@ class MotionCompensationFeatureFusion(nn.Module):
 
     def forward(self, x: torch.Tensor, of: torch.Tensor):
         ref = x[:, self.center_frame_idx, ...]
-        ref_out = self.end_ref_conv(self.ref_convs(ref))
+        ref_out = self.ref_convs(ref)
 
         neighbor_out = []
         neighbor_indices = [i for i in range(x.size(1)) if i != self.center_frame_idx]
@@ -88,13 +102,18 @@ class MotionCompensationFeatureFusion(nn.Module):
 
 
 class PyramidMotionCompensationFetaureFusion(nn.Module):
-    def __init__(self, in_channels, mid_channels_scale, out_channels, num_scales=3, center_frame_idx=1, use_previous=False):
+    def __init__(self, in_channels, mid_channels_scale, out_channels, num_scales=3, center_frame_idx=1, use_previous=False, use_convs=True):
         super(PyramidMotionCompensationFetaureFusion, self).__init__()
         self.skip_connections = nn.ModuleDict()
         for level, (ic, oc) in enumerate(zip(in_channels, out_channels)):
             level_name = f"level_{level}"
             self.skip_connections[level_name] = MotionCompensationFeatureFusion(
-                ic, ic * mid_channels_scale, oc, num_scales=num_scales, center_frame_idx=center_frame_idx
+                in_channels=ic,
+                mid_channels=ic * mid_channels_scale,
+                out_channels=oc,
+                num_scales=num_scales,
+                center_frame_idx=center_frame_idx,
+                use_convs=use_convs,
             )
 
     def forward(self, xs: List[torch.Tensor], of: torch.Tensor):
@@ -109,9 +128,9 @@ class PyramidMotionCompensationFetaureFusion(nn.Module):
         """
         self.ofs = []
         b, t, c, h, w = of.shape
-        for _, _, _, h_, w_ in [x.shape for x in xs]:
+        for i, (_, _, _, h_, w_) in enumerate([x.shape for x in xs]):
             of_ = F.interpolate(of.view(b * t, c, h, w), size=(h_, w_), mode="bilinear", align_corners=False)
-            self.ofs.append(of_.view(b, t, c, h_, w_))
+            self.ofs.append(of_.view(b, t, c, h_, w_) / (2.0**i))
 
         out = []
         for i, (x, of) in enumerate(zip(xs, self.ofs)):
@@ -138,7 +157,15 @@ class UpsampleBlock(nn.Module):
 
 
 class SuperResolutionUnet(smp.Unet):
-    def __init__(self, num_reconstruction_blocks: Optional[int] = None, *args, **kwargs):
+    def __init__(
+        self,
+        mid_conv_channels_scale: int = 2,
+        num_reconstruction_blocks: Optional[int] = None,
+        use_convs: bool = True,
+        num_scales: int = 3,
+        *args,
+        **kwargs,
+    ):
         super(SuperResolutionUnet, self).__init__(*args, **kwargs)
 
         sig = inspect.signature(smp.Unet.__init__)
@@ -146,7 +173,12 @@ class SuperResolutionUnet(smp.Unet):
         out_channels = default_values["decoder_channels"][-1]
 
         self.middle = PyramidMotionCompensationFetaureFusion(
-            self.encoder.out_channels, 2, self.encoder.out_channels, num_scales=3, center_frame_idx=1
+            in_channels=self.encoder.out_channels,
+            mid_channels_scale=mid_conv_channels_scale,
+            out_channels=self.encoder.out_channels,
+            num_scales=num_scales,
+            center_frame_idx=1,
+            use_convs=use_convs,
         )
         self.segmentation_head = None
         self.decoder = UnetDecoderWithFirstSkip(

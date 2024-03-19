@@ -1,7 +1,7 @@
 {
     "misc": {
         "project": "BP",
-        "name": "UNET-10rec",
+        "name": "UNET-noconvs-10rec",
         "logger": "wandb",
         "save_top_k": 3
     },
@@ -20,7 +20,9 @@
             "encoder_name": "resnet34",
             "encoder_weights": null,
             "in_channels": 3,
-            "num_reconstruction_blocks": 10
+            "num_reconstruction_blocks": 10,
+            "use_convs": false,
+            "mid_conv_channels_scale": 1
         }
     },
     "datamodule": {
