@@ -1,7 +1,7 @@
 {
     "misc": {
         "project": "BP",
-        "name": "UNET-noconvs-10rec",
+        "name": "UNET-noconvs-40rec",
         "logger": "wandb",
         "save_top_k": 3
     },
@@ -20,7 +20,7 @@
             "encoder_name": "resnet34",
             "encoder_weights": null,
             "in_channels": 3,
-            "num_reconstruction_blocks": 10,
+            "num_reconstruction_blocks": 40,
             "use_convs": false,
             "mid_conv_channels_scale": 1
         }
@@ -40,15 +40,15 @@
             "of_path": "/zfs-pool/xsirov00/data/flows/REDS/val",
             "num_frames": 3
         },
-        "batch_size": 24,
+        "batch_size": 16,
         "num_workers": 8
     },
     "training": {
         "num_epochs": 1000,
         "log_every_n_steps": 50,
-        "check_val_every_n_epochs": 20,
+        "check_val_every_n_epochs": 10,
         "devices": [
-            0
+            1
         ],
         "limit_batches": 1.0,
         "learning_rate": 3e-4

@@ -24,6 +24,8 @@ def _setup_logger(args: dict[str, Any]) -> Logger:
         from lightning.pytorch.loggers import TensorBoardLogger
 
         logger = TensorBoardLogger(save_dir="logs", name=args["name"])
+    else:
+        raise ValueError(f"Unknown logger: {args['logger']}")
 
     return logger
 
