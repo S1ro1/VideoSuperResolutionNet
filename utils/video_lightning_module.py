@@ -4,6 +4,7 @@ import lightning as L
 from torch import nn, optim
 from torchmetrics.functional.image import peak_signal_noise_ratio, structural_similarity_index_measure
 import cv2
+import torch.optim as optim
 
 torch.set_float32_matmul_precision("medium")
 
@@ -110,10 +111,15 @@ class VideoSRLightningModule(L.LightningModule):
         bilinear_metrics = self._compute_metrics(bilinear, batch["HQ"], compute_loss=False)
         self._log_metrics(bilinear_metrics, "val_upsampled", sync_dist=True)
         if batch_idx == len(self.trainer.val_dataloaders) - 1:
-            self._log_images("val/out", {"HQ": batch["HQ"][0], "HQ Prediction": outputs[0], "Bilinear": bilinear[0]})
+            for img_idx in range(len(batch["HQ"])):
+                self._log_images("val/out", {"HQ": batch["HQ"][img_idx], "HQ Prediction": outputs[img_idx], "Bilinear": bilinear[img_idx]})
 
         return metrics["loss"]
 
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.lr)
-        return optimizer
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=100)
+        }
