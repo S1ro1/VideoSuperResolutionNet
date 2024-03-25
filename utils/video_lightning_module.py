@@ -65,17 +65,17 @@ class VideoSRLightningModule(L.LightningModule):
     def _common_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         if self.padding is not None:
             lq = self.input_padder(batch["LQ"])
-            if self.args["model_name"] == "UNet":
+            if self.args.get("use_optical_flow", True):
                 of = self.input_padder(batch["OF"])
         else:
             lq = batch["LQ"]
-            if self.args["model_name"] == "UNet":
+            if self.args.get("use_optical_flow", True):
                 of = batch["OF"]
 
-        if self.args["model_name"] == "UNet":
+        if self.args.get("use_optical_flow", True):
             outputs = self.model({"LQ": lq, "OF": of})
         else:
-            outputs = self.model(of)
+            outputs = self.model(lq)
 
         if self.padding is not None:
             outputs = self.input_crop(outputs)
@@ -119,7 +119,4 @@ class VideoSRLightningModule(L.LightningModule):
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.lr)
 
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=100)
-        }
+        return {"optimizer": optimizer, "lr_scheduler": optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=100)}

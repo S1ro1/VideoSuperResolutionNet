@@ -192,23 +192,27 @@ class SuperResolutionUnet(smp.Unet):
         num_reconstruction_blocks: Optional[int] = None,
         use_convs: bool = True,
         num_scales: int = 3,
+        use_skip_connections: bool = True,
         *args,
         **kwargs,
     ):
         super(SuperResolutionUnet, self).__init__(*args, **kwargs)
+        self.use_skip_connections = use_skip_connections
 
         sig = inspect.signature(smp.Unet.__init__)
         default_values = {k: v.default for k, v in sig.parameters.items() if v.default is not inspect.Parameter.empty}
         out_channels = default_values["decoder_channels"][-1]
 
-        self.middle = PyramidMotionCompensationFetaureFusion(
-            in_channels=self.encoder.out_channels,
-            mid_channels_scale=mid_conv_channels_scale,
-            out_channels=self.encoder.out_channels,
-            num_scales=num_scales,
-            center_frame_idx=1,
-            use_convs=use_convs,
-        )
+        if use_skip_connections:
+            self.middle = PyramidMotionCompensationFetaureFusion(
+                in_channels=self.encoder.out_channels,
+                mid_channels_scale=mid_conv_channels_scale,
+                out_channels=self.encoder.out_channels,
+                num_scales=num_scales,
+                center_frame_idx=1,
+                use_convs=use_convs,
+            )
+
         self.segmentation_head = None
         self.decoder = UnetDecoderWithFirstSkip(
             self.encoder.out_channels,
@@ -224,8 +228,8 @@ class SuperResolutionUnet(smp.Unet):
             self.reconstruction_blocks = nn.Identity()
 
         self.upsample = UpsampleBlock(out_channels)
-
-    def forward(self, x: dict):
+    
+    def _multi_frame_of_forward(self, x: dict):
         feat = x["LQ"]
         of = x["OF"]
 
@@ -244,6 +248,22 @@ class SuperResolutionUnet(smp.Unet):
         out = self.reconstruction_blocks(out)
         out = self.upsample(out)
         return out
+    
+    def _single_frame_forward(self, x: torch.Tensor):
+        self.check_input_shape(x)
+
+        features = self.encoder(x)
+        out = self.decoder(*features)
+
+        out = self.reconstruction_blocks(out)
+        out = self.upsample(out)
+        return out
+
+    def forward(self, x: dict):
+        if self.use_skip_connections:
+            return self._multi_frame_of_forward(x)
+        else:
+            return self._single_frame_forward(x)
 
 
 class UnetDecoderWithFirstSkip(nn.Module):
