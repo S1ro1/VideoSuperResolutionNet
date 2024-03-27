@@ -1,3 +1,4 @@
+from typing import Literal
 import torch
 import torchvision
 from pathlib import Path
@@ -186,7 +187,16 @@ class VideoMultiFrameDataset(Dataset):
 
 
 class VideoMultiFrameOFDataset(Dataset):
-    def __init__(self, lq_path: str, hq_path: str, of_path: str, num_frames: int = 3, *_args, **_kwargs):
+    def __init__(
+        self,
+        lq_path: str,
+        hq_path: str,
+        of_path: str,
+        num_frames: int = 3,
+        of_type: Literal["calculated", "zero", "random"] = "calculated",
+        *_args,
+        **_kwargs,
+    ):
         """Dataset for multi frame training with optical flow,
         expects directory structure to be:
         lq_path:
@@ -209,11 +219,13 @@ class VideoMultiFrameOFDataset(Dataset):
             hq_path (str): path to high quality frames
             of_path (str): path to optical flow frames
             num_frames (int): number of frames to be stacked in 1 element
+            of_type (Literal["calculated", "zero", "random"]): Type of optical flow to be used (default: "calculated")
 
         Raises:
             NotImplementedError: If num_frames is not 3
         """
         self.num_frames = num_frames
+        self.of_type = of_type
 
         if self.num_frames != 3:
             raise NotImplementedError("Only 3 frames are supported for now.")
@@ -277,8 +289,15 @@ class VideoMultiFrameOFDataset(Dataset):
         for lq_frame_path in lq_frame_paths:
             lq_frames.append(torchvision.io.read_image(str(lq_frame_path)) / 255.0)
 
-        of_down = torch.load(of_down_path, map_location='cpu').squeeze(0)
-        of_up = torch.load(of_up_path, map_location='cpu').squeeze(0)
+        if self.of_type == "calculated":
+            of_down = torch.load(of_down_path, map_location="cpu").squeeze(0)
+            of_up = torch.load(of_up_path, map_location="cpu").squeeze(0)
+        elif self.of_type == "zero":
+            of_down = torch.zeros(2, lq_frames[0].shape[-2], lq_frames[0].shape[-1])
+            of_up = torch.zeros(2, lq_frames[0].shape[-2], lq_frames[0].shape[-1])
+        elif self.of_type == "random":
+            of_down = torch.rand(2, lq_frames[0].shape[-2], lq_frames[0].shape[-1])
+            of_up = torch.rand(2, lq_frames[0].shape[-2], lq_frames[0].shape[-1])
 
         # Crop optical flow to match the size of the frames (RAFT pads the image symmetrically in sintel mode)
         hd = of_up.shape[-2] - lq_frames[0].shape[-2]
