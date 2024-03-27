@@ -4,11 +4,26 @@ import torch.nn as nn
 import torch.nn.functional as F
 import segmentation_models_pytorch as smp
 from mmcv.ops import DeformConv2d
-from typing import List, Optional
+from typing import Callable, List, Optional
 import inspect
 
 
-def make_conv_relu(in_channels, out_channels, kernel_size=3, stride=1, padding=1, num_scales=3):
+def make_conv_relu(
+    in_channels: int, out_channels: int, kernel_size: int = 3, stride: int = 1, padding: int = 1, num_scales: int = 3
+) -> nn.Sequential:
+    """Creates a sequence of convolutional layers followed by ReLU activation
+
+    Args:
+        in_channels (int): Number of input channels
+        out_channels (int): Number of output channels
+        kernel_size (int, optional): Kernel size. Defaults to 3.
+        stride (int, optional): Stride. Defaults to 1.
+        padding (int, optional): Padding. Defaults to 1.
+        num_scales (int, optional): Number of blocks. Defaults to 3.
+
+    Returns:
+        nn.Sequential: Sequence of convolutional layers followed by ReLU activation
+    """
     convs = []
     for _ in range(num_scales):
         convs.append(nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding))
@@ -16,7 +31,16 @@ def make_conv_relu(in_channels, out_channels, kernel_size=3, stride=1, padding=1
     return nn.Sequential(*convs)
 
 
-def make_layer(layer, num_layers, *args, **kwargs):
+def make_layer(layer: Callable, num_layers: int, *args, **kwargs) -> nn.Sequential:
+    """Creates a sequence of layers
+
+    Args:
+        layer (Callable): Layer function
+        num_layers (int): Number of layers
+
+    Returns:
+        nn.Sequential: Sequence of layers
+    """
     layers = []
     for _ in range(num_layers):
         layers.append(layer(*args, **kwargs))
@@ -25,6 +49,11 @@ def make_layer(layer, num_layers, *args, **kwargs):
 
 class BottleneckResidualBlock(nn.Module):
     def __init__(self, num_features):
+        """Bottleneck residual block, ---1x1 conv---3x3 conv---1x1 conv---+--->
+                                       |__________________________________|
+        Args:
+            num_features (_type_): Number of input features
+        """
         super(BottleneckResidualBlock, self).__init__()
         self.conv1 = nn.Conv2d(num_features, num_features, kernel_size=1, stride=1)
         self.conv2 = nn.Conv2d(num_features, num_features, 3, 1, 1)
@@ -39,7 +68,19 @@ class BottleneckResidualBlock(nn.Module):
 
 
 class DConvMotionCompensation(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, num_scales=3, deformable_groups=1, use_convs=True):
+    def __init__(
+        self, in_channels: int, out_channels: int, kernel_size: int = 3, num_scales: int = 3, deformable_groups=1, use_convs: bool = True
+    ):
+        """Deformable convolutional motion compensation block
+
+        Args:
+            in_channels (int): Input channels
+            out_channels (int): Output channels
+            kernel_size (int, optional): Kernel size. Defaults to 3.
+            num_scales (int, optional): Number of scales of preprocessing convolutions, only works if use_convs is True. Defaults to 3.
+            deformable_groups (int, optional): Deformable groups. Defaults to 1.
+            use_convs (bool, optional): Whether to use convolutions to preprocess features. Defaults to True.
+        """
         super(DConvMotionCompensation, self).__init__()
         self.kernel_size = kernel_size
         if use_convs:
@@ -80,7 +121,16 @@ class DConvMotionCompensation(nn.Module):
 
         return adjusted_of.view(B, self.kernel_size * self.kernel_size * 2, H, W)
 
-    def forward(self, x: torch.Tensor, of: torch.Tensor):
+    def forward(self, x: torch.Tensor, of: torch.Tensor) -> torch.Tensor:
+        """Forward method
+
+        Args:
+            x (torch.Tensor): Batch of input features with shape (B, C, H, W), to be aligned by optical flow
+            of (torch.Tensor): Batch of optical flow with shape (B, 2, H, W), used as offsets inside deformable convoltional layer
+
+        Returns:
+            torch.Tensor: Batch of aligned features with shape (B, C, H, W)
+        """
         x = self.convs(x)
         x = x.contiguous()
         of = self._adjust_optical_flow(of)
@@ -89,36 +139,74 @@ class DConvMotionCompensation(nn.Module):
 
 
 class MotionCompensationFeatureFusion(nn.Module):
-    def __init__(self, in_channels, mid_channels, out_channels, use_convs: bool = True, num_scales=3, center_frame_idx=1):
+    def __init__(
+        self,
+        in_channels: int,
+        mid_channels: int,
+        out_channels: int,
+        use_convs: bool = True,
+        num_scales: int = 3,
+        center_frame_idx: int = 1,
+        use_middle_frame: bool = True,
+    ):
+        """Motion compensation feature fusion block
+
+        Args:
+            in_channels (int): Input channels
+            mid_channels (int): Intermediate channels used in feature refinement
+            out_channels (int): Output channels
+            use_convs (bool, optional): If set to True, features are further refined using convolutional layers. Defaults to True.
+            num_scales (int, optional): If `use_convs` is set to True, number of scales in the feature refinement. Defaults to 3.
+            center_frame_idx (int, optional): Center frame index. Defaults to 1.
+            use_middle_frame (bool, optional): If set to True, middle frame is used to predict aligned features. Defaults to True.
+        """
         super(MotionCompensationFeatureFusion, self).__init__()
-        if use_convs:
+        if use_convs and use_middle_frame:
             ref_convs = make_conv_relu(in_channels, in_channels, num_scales=num_scales)
             end_ref_conv = nn.Conv2d(in_channels, mid_channels, 3, 1, 1)
             self.ref_convs = nn.Sequential(*ref_convs, end_ref_conv)
-        else:
+        elif not use_convs and use_middle_frame:
             assert in_channels == mid_channels, "If not using convs, in_channels must be equal to mid_channels."
             self.ref_convs = nn.Identity()
+        elif not use_convs and not use_middle_frame:
+            self.ref_convs = None
+        elif use_convs and not use_middle_frame:
+            self.ref_convs = None
 
         self.neighboring_blocks = DConvMotionCompensation(
             in_channels=in_channels, out_channels=mid_channels, num_scales=num_scales, use_convs=use_convs
         )
         self.center_frame_idx = center_frame_idx
+        self.use_middle_frame = use_middle_frame
+        feature_count = 3 if use_middle_frame else 2
 
         self.fusion_block = nn.Sequential(
-            nn.Conv2d(mid_channels * 3, mid_channels * 3, 3, 1, 1),
+            nn.Conv2d(mid_channels * feature_count, mid_channels * feature_count, 3, 1, 1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(mid_channels * 3, mid_channels, 3, 1, 1),
+            nn.Conv2d(mid_channels * feature_count, mid_channels, 3, 1, 1),
             nn.ReLU(inplace=True),
             nn.Conv2d(mid_channels, out_channels, 3, 1, 1),
         )
 
-    def forward(self, x: torch.Tensor, of: torch.Tensor):
-        ref = x[:, self.center_frame_idx, ...]
-        ref_out = self.ref_convs(ref)
+    def forward(self, x: torch.Tensor, of: torch.Tensor) -> torch.Tensor:
+        """Forward method
 
-        neighbor_out = []
-        neighbor_indices = [i for i in range(x.size(1)) if i != self.center_frame_idx]
+        Args:
+            x (torch.Tensor): Torch tensor of input features with shape (B, T, C, H, W)
+            of (torch.Tensor): Torch tensor of optical flow with shape (B, T, 2, H, W)
+
+        Returns:
+            torch.Tensor: Torch tensor of aligned features with shape (B, C, H, W)
+        """
+        if self.use_middle_frame:
+            ref = x[:, self.center_frame_idx, ...]
+            ref_out = self.ref_convs(ref)
+            neighbor_indices = [i for i in range(x.size(1)) if i != self.center_frame_idx]
+        else:
+            neighbor_indices = [i for i in range(x.size(1))]
+
         of_indices = [i for i in range(of.size(1))]
+        neighbor_out = []
         for (
             ni,
             oi,
@@ -127,11 +215,35 @@ class MotionCompensationFeatureFusion(nn.Module):
 
         neighbor_out = torch.cat(neighbor_out, dim=1)
 
-        return self.fusion_block(torch.cat([ref_out, neighbor_out], dim=1))
+        out = torch.cat([ref_out, neighbor_out], dim=1) if self.use_middle_frame else neighbor_out
+
+        return self.fusion_block(out)
 
 
 class PyramidMotionCompensationFetaureFusion(nn.Module):
-    def __init__(self, in_channels, mid_channels_scale, out_channels, num_scales=3, center_frame_idx=1, use_previous=False, use_convs=True):
+    def __init__(
+        self,
+        in_channels: int,
+        mid_channels_scale: int,
+        out_channels: int,
+        num_scales: int = 3,
+        center_frame_idx: int = 1,
+        use_previous: bool = False,
+        use_convs: bool = True,
+        use_middle_frame: bool = True,
+    ):
+        """Pyramid motion compensation feature fusion block
+
+        Args:
+            in_channels (int): Input channels
+            mid_channels_scale (int): Intermediate channels scale, `mid_channels = in_channels * mid_channels_scale`
+            out_channels (int): Output channels
+            num_scales (int, optional): Number of scales to use in feature refinement, valid only if `use_convs` is set to True. Defaults to 3.
+            center_frame_idx (int, optional): Center frame index. Defaults to 1.
+            use_previous (bool, optional): Unimplemented. Defaults to False.
+            use_convs (bool, optional): If set to True, features are refined with convolutional layers. Defaults to True.
+            use_middle_frame (bool, optional): If set to True, middle frame is used to predict the aligned features. Defaults to True.
+        """
         super(PyramidMotionCompensationFetaureFusion, self).__init__()
         self.skip_connections = nn.ModuleDict()
         for level, (ic, oc) in enumerate(zip(in_channels, out_channels)):
@@ -143,9 +255,10 @@ class PyramidMotionCompensationFetaureFusion(nn.Module):
                 num_scales=num_scales,
                 center_frame_idx=center_frame_idx,
                 use_convs=use_convs,
+                use_middle_frame=use_middle_frame,
             )
 
-    def forward(self, xs: List[torch.Tensor], of: torch.Tensor):
+    def forward(self, xs: List[torch.Tensor], of: torch.Tensor) -> List[torch.Tensor]:
         """Forward method
 
         Args:
@@ -153,7 +266,7 @@ class PyramidMotionCompensationFetaureFusion(nn.Module):
             of [torch.Tensor]: Tensor of optical flow in shape (B, T, 2, H, W)
 
         Returns:
-            _type_: _description_
+            List[torch.Tensor]: List of aligned feature maps in shape (B, C, H, W)
         """
         self.ofs = []
         b, t, c, h, w = of.shape
@@ -170,7 +283,12 @@ class PyramidMotionCompensationFetaureFusion(nn.Module):
 
 
 class UpsampleBlock(nn.Module):
-    def __init__(self, in_channels):
+    def __init__(self, in_channels: int):
+        """Upsample block, upsamples the output 4x
+
+        Args:
+            in_channels (int): Input channels
+        """
         super(UpsampleBlock, self).__init__()
         self.pixel_shuffle = nn.PixelShuffle(2)
         self.upconv1 = nn.Conv2d(in_channels, in_channels * 4, 3, 1, 1)
@@ -193,11 +311,25 @@ class SuperResolutionUnet(smp.Unet):
         use_convs: bool = True,
         num_scales: int = 3,
         use_skip_connections: bool = True,
+        use_middle_frame: bool = True,
         *args,
         **kwargs,
     ):
+        """Super resolution U-Net model
+
+        Args:
+            mid_conv_channels_scale (int, optional): Number to scale intermediate channels with:
+            `mid_channels = in_channels * mid_conv_channels_scale`. Defaults to 2
+            num_reconstruction_blocks (Optional[int], optional): Number of reconstruction blocks to be used
+            after contracting path. Defaults to None.
+            use_convs (bool, optional): If set to True, features are refined with convolutional layers in skip connections. Defaults to True.
+            num_scales (int, optional): Num scales of the refinement convolutional layers. Defaults to 3.
+            use_skip_connections (bool, optional): If set to True, feature alignment skip connections are used. Defaults to True.
+            use_middle_frame (bool, optional): If set to True, middle frame is used to predict the aligned features. Defaults to True.
+        """
         super(SuperResolutionUnet, self).__init__(*args, **kwargs)
         self.use_skip_connections = use_skip_connections
+        self.use_middle_frame = use_middle_frame
 
         sig = inspect.signature(smp.Unet.__init__)
         default_values = {k: v.default for k, v in sig.parameters.items() if v.default is not inspect.Parameter.empty}
@@ -211,6 +343,7 @@ class SuperResolutionUnet(smp.Unet):
                 num_scales=num_scales,
                 center_frame_idx=1,
                 use_convs=use_convs,
+                use_middle_frame=use_middle_frame,
             )
 
         self.segmentation_head = None
@@ -228,10 +361,22 @@ class SuperResolutionUnet(smp.Unet):
             self.reconstruction_blocks = nn.Identity()
 
         self.upsample = UpsampleBlock(out_channels)
-    
-    def _multi_frame_of_forward(self, x: dict):
+
+    def _multi_frame_of_forward(self, x: dict) -> torch.Tensor:
+        """Forward method for multi-frame optical flow
+
+        Args:
+            x (dict): Dictionary containing keys "LQ" and "OF"
+            with values being torch tensors of low quality frames and optical flow of shape (B, T, C, H, W), (B, T - 1, 2, H, W) respectively
+
+        Returns:
+            torch.Tensor: Output tensor of shape (B, 3, H, W)
+        """
         feat = x["LQ"]
         of = x["OF"]
+
+        if not self.use_middle_frame:
+            feat = torch.cat([feat[:, :1], feat[:, 2:]], dim=1)
 
         b, t, c, h, w = feat.shape
         flat_xs = feat.view(b * t, c, h, w)
@@ -248,8 +393,16 @@ class SuperResolutionUnet(smp.Unet):
         out = self.reconstruction_blocks(out)
         out = self.upsample(out)
         return out
-    
-    def _single_frame_forward(self, x: torch.Tensor):
+
+    def _single_frame_forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward method for single frame without optical flow
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (B, C, H, W)
+
+        Returns:
+            torch.Tensor: Output tensor of shape (B, 3, H, W)
+        """
         self.check_input_shape(x)
 
         features = self.encoder(x)
@@ -259,7 +412,16 @@ class SuperResolutionUnet(smp.Unet):
         out = self.upsample(out)
         return out
 
-    def forward(self, x: dict):
+    def forward(self, x: dict|torch.Tensor) -> torch.Tensor:
+        """Forward method
+
+        Args:
+            x (dict | torch.Tensor): Input tensor of shape (B, C, H, W) or dictionary containing keys "LQ" and "OF" with values being torch tensors of low quality frames and optical flow of shape (B, T, C, H, W), (B, T - 1, 2, H, W) respectively
+
+        Returns:
+            torch.Tensor: Output tensor of shape (B, 3, H, W)
+        """
+
         if self.use_skip_connections:
             return self._multi_frame_of_forward(x)
         else:
