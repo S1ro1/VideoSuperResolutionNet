@@ -333,7 +333,14 @@ class SuperResolutionUnet(smp.Unet):
 
         sig = inspect.signature(smp.Unet.__init__)
         default_values = {k: v.default for k, v in sig.parameters.items() if v.default is not inspect.Parameter.empty}
-        out_channels = default_values["decoder_channels"][-1]
+
+        decoder_channels = kwargs.get("decoder_channels", default_values["decoder_channels"])
+        n_blocks = kwargs.get("encoder_depth", default_values["encoder_depth"])
+        use_batchnorm = kwargs.get("decoder_use_batchnorm", default_values["decoder_use_batchnorm"])
+        encoder_name = kwargs.get("encoder_name", default_values["encoder_name"])
+        attention_type = kwargs.get("decoder_attention_type", default_values["decoder_attention_type"])
+
+        out_channels = decoder_channels[-1]
 
         if use_skip_connections:
             self.middle = PyramidMotionCompensationFetaureFusion(
@@ -349,11 +356,11 @@ class SuperResolutionUnet(smp.Unet):
         self.segmentation_head = None
         self.decoder = UnetDecoderWithFirstSkip(
             self.encoder.out_channels,
-            default_values["decoder_channels"],
-            n_blocks=default_values["encoder_depth"],
-            use_batchnorm=default_values["decoder_use_batchnorm"],
-            center=True if default_values["encoder_name"].startswith("vgg") else False,
-            attention_type=default_values["decoder_attention_type"],
+            decoder_channels=decoder_channels,
+            n_blocks=n_blocks,
+            use_batchnorm=use_batchnorm,
+            center=True if encoder_name.startswith("vgg") else False,
+            attention_type=attention_type,
         )
         if num_reconstruction_blocks is not None:
             self.reconstruction_blocks = make_layer(BottleneckResidualBlock, num_reconstruction_blocks, out_channels)
@@ -412,7 +419,7 @@ class SuperResolutionUnet(smp.Unet):
         out = self.upsample(out)
         return out
 
-    def forward(self, x: dict|torch.Tensor) -> torch.Tensor:
+    def forward(self, x: dict | torch.Tensor) -> torch.Tensor:
         """Forward method
 
         Args:
