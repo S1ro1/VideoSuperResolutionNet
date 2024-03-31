@@ -193,7 +193,7 @@ class VideoMultiFrameOFDataset(Dataset):
         hq_path: str,
         of_path: str,
         num_frames: int = 3,
-        of_type: Literal["calculated", "zero", "random"] = "calculated",
+        of_type: Literal["calculated", "zero", "random", "minus"] = "calculated",
         *_args,
         **_kwargs,
     ):
@@ -289,7 +289,7 @@ class VideoMultiFrameOFDataset(Dataset):
         for lq_frame_path in lq_frame_paths:
             lq_frames.append(torchvision.io.read_image(str(lq_frame_path)) / 255.0)
 
-        if self.of_type == "calculated":
+        if self.of_type == "calculated" or self.of_type == "minus":
             of_down = torch.load(of_down_path, map_location="cpu").squeeze(0)
             of_up = torch.load(of_up_path, map_location="cpu").squeeze(0)
         elif self.of_type == "zero":
@@ -298,6 +298,10 @@ class VideoMultiFrameOFDataset(Dataset):
         elif self.of_type == "random":
             of_down = torch.rand(2, lq_frames[0].shape[-2], lq_frames[0].shape[-1])
             of_up = torch.rand(2, lq_frames[0].shape[-2], lq_frames[0].shape[-1])
+        
+        if self.of_type == "minus":
+            of_down = -of_down
+            of_up = -of_up
 
         # Crop optical flow to match the size of the frames (RAFT pads the image symmetrically in sintel mode)
         hd = of_up.shape[-2] - lq_frames[0].shape[-2]
