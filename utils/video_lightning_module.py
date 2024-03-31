@@ -4,7 +4,6 @@ import lightning as L
 from torch import nn, optim
 from torchmetrics.functional.image import peak_signal_noise_ratio, structural_similarity_index_measure
 import cv2
-import torch.optim as optim
 
 torch.set_float32_matmul_precision("medium")
 
@@ -63,19 +62,13 @@ class VideoSRLightningModule(L.LightningModule):
                 cv2.imwrite(f"{section}_{iteration}_{k}.png", v.permute(1, 2, 0).cpu().numpy())
 
     def _common_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
-        if self.padding is not None:
-            lq = self.input_padder(batch["LQ"])
-            if self.args.get("use_optical_flow", True):
-                of = self.input_padder(batch["OF"])
-        else:
-            lq = batch["LQ"]
-            if self.args.get("use_optical_flow", True):
-                of = batch["OF"]
+        x = self.input_padder(batch["LQ"]) if self.padding is not None else batch["LQ"]
 
         if self.args.get("use_optical_flow", True):
-            outputs = self.model({"LQ": lq, "OF": of})
-        else:
-            outputs = self.model(lq)
+            of = self.input_padder(batch["OF"]) if self.padding is not None else batch["OF"]
+            x = {"LQ": x, "OF": of}
+
+        outputs = self.model(x)
 
         if self.padding is not None:
             outputs = self.input_crop(outputs)
