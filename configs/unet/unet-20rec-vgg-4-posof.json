@@ -1,7 +1,7 @@
 {
     "misc": {
         "project": "BP",
-        "name": "UNET-20rec-vgg-3-posof",
+        "name": "UNET-20rec-vgg-4-posof",
         "logger": "wandb",
         "save_top_k": 3
     },
@@ -21,9 +21,10 @@
             "decoder_channels": [
                 256,
                 128,
-                64
+                64,
+                32
             ],
-            "encoder_depth": 3,
+            "encoder_depth": 4,
             "encoder_weights": null,
             "in_channels": 3,
             "num_reconstruction_blocks": 20,
@@ -48,7 +49,7 @@
             "num_frames": 3,
             "of_type": "calculated"
         },
-        "batch_size": 4,
+        "batch_size": 8,
         "num_workers": 16
     },
     "training": {

@@ -1,6 +1,6 @@
 import json
 from typing import Any, List
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, Callback
 from lightning.pytorch.loggers.logger import Logger
 import lightning as L
 import argparse
