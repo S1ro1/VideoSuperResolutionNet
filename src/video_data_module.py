@@ -10,11 +10,11 @@ class VideoLightningDataModule(LightningDataModule):
 
     def setup(self, stage: str):
         if self.args["use_optical_flow"]:
-            from utils.dataset import VideoMultiFrameOFDataset as Dataset
+            from src.dataset import VideoMultiFrameOFDataset as Dataset
         elif self.args["num_frames"] > 1:
-            from utils.dataset import VideoMultiFrameDataset as Dataset
+            from src.dataset import VideoMultiFrameDataset as Dataset
         elif self.args["num_frames"] == 1:
-            from utils.dataset import VideoSingleFrameDataset as Dataset
+            from src.dataset import VideoSingleFrameDataset as Dataset
 
         self.train = Dataset(**self.args["train_dataset_args"])
         self.val = Dataset(**self.args["val_dataset_args"])

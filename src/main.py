@@ -1,12 +1,12 @@
 import json
 from typing import Any, List
-from lightning.pytorch.callbacks import ModelCheckpoint, Callback
+from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers.logger import Logger
 import lightning as L
 import argparse
 
-from utils.video_lightning_module import VideoSRLightningModule
-from utils.video_data_module import VideoLightningDataModule
+from src.video_lightning_module import VideoSRLightningModule
+from src.video_data_module import VideoLightningDataModule
 
 
 def parse_args():
