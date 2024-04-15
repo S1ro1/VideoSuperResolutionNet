@@ -9,13 +9,29 @@ from src.video_lightning_module import VideoSRLightningModule
 from src.video_data_module import VideoLightningDataModule
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """Argument parser for the main function
+
+    Returns:
+        argparse.Namespace: Parsed arguments
+    """
     parser = argparse.ArgumentParser(description="Train a model")
     parser.add_argument("--config", type=str, help="Path to config file")
     return parser.parse_args()
 
 
 def _setup_logger(args: dict[str, Any]) -> Logger:
+    """Setup the logger based on arguments
+
+    Args:
+        args (dict[str, Any]): Arguments for the logger
+
+    Raises:
+        ValueError:  If the logger is not recognized
+
+    Returns:
+        Logger: Logger instance
+    """
     if args["logger"] == "wandb":
         from lightning.pytorch.loggers import WandbLogger
 
@@ -31,6 +47,14 @@ def _setup_logger(args: dict[str, Any]) -> Logger:
 
 
 def _setup_callbacks(args: dict[str, Any]) -> List[L.Callback]:
+    """Create a list of callbacks from specified argument dictionary
+
+    Args:
+        args (dict[str, Any]): Arguments for the callbacks
+
+    Returns:
+        List[L.Callback]: List of callbacks
+    """
     checkpoint_callback = ModelCheckpoint(
         dirpath=f"checkpoints/{args['project']}_{args['name']}",
         save_top_k=args["save_top_k"],
@@ -44,6 +68,16 @@ def _setup_callbacks(args: dict[str, Any]) -> List[L.Callback]:
 
 
 def _setup_trainer(args: dict[str, Any], logger: Logger, callbacks: List[L.Callback]) -> L.Trainer:
+    """Setup the lighting trainer class
+
+    Args:
+        args (dict[str, Any]): arguments for the trainer
+        logger (Logger): logger instance
+        callbacks (List[L.Callback]): List of callbacks to use
+
+    Returns:
+        L.Trainer: Lightning trainer instance
+    """
     return L.Trainer(
         max_epochs=args["num_epochs"],
         devices=args["devices"],

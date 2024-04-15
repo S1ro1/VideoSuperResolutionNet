@@ -10,6 +10,13 @@ torch.set_float32_matmul_precision("medium")
 
 class VideoSRLightningModule(L.LightningModule):
     def __init__(self, args: dict[str, Any], num_frames: int = 1, padding: Optional[List[int]] = None):
+        """LightningModule for video super-resolution
+
+        Args:
+            args (dict[str, Any]): Arguments for the model
+            num_frames (int, optional): Number of frames to use. Defaults to 1.
+            padding (Optional[List[int]], optional): List of paddings that are required by the model. Defaults to None.
+        """
         super().__init__()
         self.num_frames = num_frames
         self.args = args
@@ -19,6 +26,11 @@ class VideoSRLightningModule(L.LightningModule):
         self.save_hyperparameters()
 
     def _setup(self) -> None:
+        """Factory method to setup the model
+
+        Raises:
+            NotImplementedError: If the model is not implemented
+        """
         self.lr = self.args["lr"]
         if self.args["model_name"] == "srresnet":
             from src.arch.srresnet import srresnet_x4 as Model
@@ -32,6 +44,7 @@ class VideoSRLightningModule(L.LightningModule):
         self.model = Model(**self.args["model_args"])
 
     def _setup_input_padder(self):
+        """Setup input padder and cropper for the model"""
         if self.padding is not None:
             self.input_padder = lambda x: nn.functional.pad(x, self.padding)
             self.input_crop = lambda x: x[
@@ -42,6 +55,16 @@ class VideoSRLightningModule(L.LightningModule):
             ]
 
     def _compute_metrics(self, outputs: torch.Tensor, targets: torch.Tensor, compute_loss: bool = True) -> dict[str, torch.Tensor]:
+        """Compute metrics for the model (ssim, psnr, l2 loss)
+
+        Args:
+            outputs (torch.Tensor): Outputs of the model
+            targets (torch.Tensor): Target predictions
+            compute_loss (bool, optional): Whether loss should be computed for optimization. Defaults to True.
+
+        Returns:
+            dict[str, torch.Tensor]: Dictionary of metrics with keys "ssim", "psnr" and "loss" optionally
+        """
         metrics = {}
         metrics["ssim"] = structural_similarity_index_measure(outputs, targets)
         metrics["psnr"] = peak_signal_noise_ratio(outputs, targets)
@@ -50,6 +73,13 @@ class VideoSRLightningModule(L.LightningModule):
         return metrics
 
     def _log_metrics(self, metrics: dict[str, torch.Tensor], prefix: str, sync_dist: bool = False) -> None:
+        """Log metrics to the logger
+
+        Args:
+            metrics (dict[str, torch.Tensor]): Dictionary of metrics
+            prefix (str): Prefix for the metrics, such as "train" or "val"
+            sync_dist (bool, optional): For multi-gpu. Defaults to False.
+        """
         for key, value in metrics.items():
             self.log(f"{prefix}/{key}", value, prog_bar=True, logger=True, sync_dist=sync_dist)
 
@@ -62,6 +92,15 @@ class VideoSRLightningModule(L.LightningModule):
                 cv2.imwrite(f"{section}_{iteration}_{k}.png", v.permute(1, 2, 0).cpu().numpy())
 
     def _common_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
+        """Common step for training and validation
+
+        Args:
+            batch (dict[str, torch.Tensor]): Batch of data
+            batch_idx (int): Index of the batch
+
+        Returns:
+            torch.Tensor: Output of the model
+        """
         x = self.input_padder(batch["LQ"]) if self.padding is not None else batch["LQ"]
 
         if self.args.get("use_optical_flow", True):
@@ -79,8 +118,8 @@ class VideoSRLightningModule(L.LightningModule):
         """training_step method of Model.
 
         Args:
-            batch (dict[str, torch.Tensor]): Batch of data, contains "LQ" and "HQ" keys
-            and values of shape (batch_size, 3, H, W)
+            batch (dict[str, torch.Tensor]): Batch of data, contains "LQ" and "HQ" keys, optionally "OF" key
+            and values of shape (batch_size, 3, H, W) or (batch_size, T, 3, H, W) respectively.
             batch_idx (int): Index of the batch
 
         Returns:
@@ -94,6 +133,16 @@ class VideoSRLightningModule(L.LightningModule):
         return metrics["loss"]
 
     def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
+        """validation_step method of Model.
+
+        Args:
+            batch (dict[str, torch.Tensor]): Batch of data, contains "LQ" and "HQ" keys, optionally "OF" key
+            and values of shape (batch_size, 3, H, W) or (batch_size, T, 3, H, W) respectively.
+            batch_idx (int): Index of the batch
+
+        Returns:
+            torch.Tensor: Loss tensor
+        """
         outputs = self._common_step(batch, batch_idx)
 
         metrics = self._compute_metrics(outputs, batch["HQ"])
@@ -109,7 +158,8 @@ class VideoSRLightningModule(L.LightningModule):
 
         return metrics["loss"]
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> None:
+        """Configure optimizers for the model"""
         optimizer = optim.Adam(self.parameters(), lr=self.lr)
 
         return {"optimizer": optimizer, "lr_scheduler": optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=100)}
