@@ -25,7 +25,7 @@ class VideoSRLightningModule(L.LightningModule):
         elif self.args["model_name"] == "EDVR":
             from basicsr.archs.edvr_arch import EDVR as Model
         elif self.args["model_name"] == "UNet":
-            from utils.arch import SuperResolutionUnet as Model
+            from arch.unet import SuperResolutionUnet as Model
         else:
             raise NotImplementedError(f"Model {self.args['model_name']} has not been implemented yet.")
 
