@@ -21,7 +21,7 @@ class VideoSRLightningModule(L.LightningModule):
     def _setup(self) -> None:
         self.lr = self.args["lr"]
         if self.args["model_name"] == "srresnet":
-            from model_zoo.srresnet import srresnet_x4 as Model
+            from arch.srresnet import srresnet_x4 as Model
         elif self.args["model_name"] == "EDVR":
             from basicsr.archs.edvr_arch import EDVR as Model
         elif self.args["model_name"] == "UNet":
