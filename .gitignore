@@ -9,3 +9,4 @@ checkpoints
 scripts/examples/*/
 .vscode
 *.ipynb
+Weights
