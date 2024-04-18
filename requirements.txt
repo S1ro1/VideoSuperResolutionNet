@@ -1,6 +1,6 @@
 torch
 torchvision
 lightning
-clearml
 tensorboard
 opencv-python
+openmim
