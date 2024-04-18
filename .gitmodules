@@ -1,3 +1,3 @@
 [submodule "scripts/RAFT"]
 	path = scripts/RAFT
-	url = git@github.com:princeton-vl/RAFT.git
+	url = git@github.com:S1ro1/RAFT.git
