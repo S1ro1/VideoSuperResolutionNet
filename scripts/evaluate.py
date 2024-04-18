@@ -51,8 +51,8 @@ def main():
         hq = module.predict_step(batch, idx).squeeze(0)
 
         if args.output_path:
-            torchvision.utils.save_image(bilinear, f"{args.output_path}/{idx}_bilinear.png")
-            torchvision.utils.save_image(hq, f"{args.output_path}/{idx}_hq.png")
+            torchvision.utils.save_image(bilinear, f"{args.output_path}/{idx:06d}_bilinear.png")
+            torchvision.utils.save_image(hq, f"{args.output_path}/{idx:06d}_hq.png")
 
         if not args.visualize:
             continue

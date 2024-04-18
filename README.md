@@ -4,20 +4,20 @@ This repository contains the code for my Bachelor's Thesis on Video Super Resolu
 
 To install the required dependencies, run `pip install -r requirements.txt`. The code was tested with Python 3.10.12. After installing dependencies, installing mmcv is required with `mim install mmcv`
 
-Source code for training is available in the `src` directory, and the code for evaluation is available in the `eval` directory. To download the weights for the models run `bash download_weights.sh` which will create a Weights folder in the root folder. To download the weights for the RAFT model run `bash scripts/RAFT/download_models.sh` which will create a models folder in the RAFT directory.
+Source code for training is available in the `src` directory, and the code for evaluation is available in the `eval` directory. To download the weights for the models run `bash download_weights.sh` which will create a Weights folder in the root folder. To download the weights for the RAFT model run `bash ./download_models.sh` inside `scripts/RAFT` directory, which will create a models folder inside.
 
 ## Evaluation
 
-To prepare a video for evaluation do the following inside the scripts directory:
+To prepare a video for evaluation do the following inside the `scripts` directory:
 
 ```bash
 $ python3 prepare_video.py --video-path /path/to/video.mp4 --output-path /path/to/output-folder --raft-weights /path/to/raft-weights.pth
 ```
 
-To evaluate the video run the following inside the scripts directory:
+To evaluate the video run the following inside the `scripts` directory:
 
 ```bash
-$ python3 evaluate.py --root-path /path/to/output-folder --weights-path /path/to/weights.ckpt --output-path /path/to/output-folder --visualize=True
+$ python3 evaluate.py --root-path /path/to/output-folder --weights-path /path/to/weights.ckpt --output-path /path/to/output-folder
 ```
 
 Visualizations are disabled by default, such as saving the results to output folder. To enable visualizations, set `--visualize=True`.
@@ -25,7 +25,7 @@ Visualizations are disabled by default, such as saving the results to output fol
 
 ## Training
 
-To train the model, run the following inside the src directory:
+To train the model, run the following inside the `src` directory:
 
 ```bash
 $ python3 train.py --config /path/to/config-file.json
