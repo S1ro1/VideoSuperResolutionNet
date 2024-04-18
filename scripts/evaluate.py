@@ -7,10 +7,6 @@ import numpy as np
 from tqdm import tqdm
 
 
-def tensor_to_image(tensor: torch.Tensor) -> np.array:
-    return cv2.normalize(tensor.permute(1, 2, 0).cpu().detach().numpy(), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-
-
 sys.path.append(os.path.abspath("../src"))
 sys.path.append(os.path.abspath(".."))
 
@@ -24,7 +20,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-path", default=None, help="Store the output, if provided")
     parser.add_argument("--weights-path", type=str, required=True, help="Path to the model weights")
     parser.add_argument("--visualize", action="store_true", help="Visualize the output")
-    parser.add_argument("--batch-size", type=int, default=1, help="Batch size for evaluation")
     return parser.parse_args()
 
 
@@ -32,13 +27,17 @@ def main():
     args = parse_args()
     if args.visualize:
         import cv2
+
+        def tensor_to_image(tensor: torch.Tensor) -> np.array:
+            return cv2.normalize(tensor.permute(1, 2, 0).cpu().detach().numpy(), None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     module = VideoSRLightningModule.load_from_checkpoint(args.weights_path, map_location=device)
     print(f"Loaded model from {args.weights_path} to device {device}")
 
     dataset = VideoMultiFrameOFDataset(args.root_path + "/frames", None, args.root_path + "/flows", num_frames=module.num_frames)
     print(f"Loaded dataset with {len(dataset)} samples")
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=False)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)
 
     module.eval()
     if args.output_path:

@@ -5,3 +5,4 @@ tensorboard
 opencv-python
 openmim
 segmentation-models-pytorch
+gdown

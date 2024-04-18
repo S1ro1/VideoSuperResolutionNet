@@ -6,7 +6,7 @@ __pycache__
 BP
 wandb
 checkpoints
-scripts/RAFT
 scripts/examples/*/
 .vscode
 *.ipynb
+Weights
