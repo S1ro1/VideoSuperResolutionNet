@@ -33,7 +33,7 @@ class VideoSRLightningModule(L.LightningModule):
         """
         self.lr = self.args["lr"]
         if self.args["model_name"] == "srresnet":
-            from src.arch.srresnet import srresnet_x4 as Model
+            from arch.srresnet import srresnet_x4 as Model
         elif self.args["model_name"] == "EDVR":
             from basicsr.archs.edvr_arch import EDVR as Model
         elif self.args["model_name"] == "UNet":
@@ -157,6 +157,10 @@ class VideoSRLightningModule(L.LightningModule):
                 self._log_images("val/out", {"HQ": batch["HQ"][img_idx], "HQ Prediction": outputs[img_idx], "Bilinear": bilinear[img_idx]})
 
         return metrics["loss"]
+    
+    def predict_step(self, batch, batch_idx) -> Any:
+        out = self._common_step(batch, batch_idx)
+        return out
 
     def configure_optimizers(self) -> None:
         """Configure optimizers for the model"""

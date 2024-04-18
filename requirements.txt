@@ -1,6 +1,7 @@
 torch
 torchvision
 lightning
-clearml
 tensorboard
 opencv-python
+openmim
+segmentation-models-pytorch

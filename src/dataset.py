@@ -231,7 +231,7 @@ class VideoMultiFrameOFDataset(Dataset):
             raise NotImplementedError("Only 3 frames are supported for now.")
 
         lq_sequences = sorted(list(Path(lq_path).iterdir()))
-        hq_sequences = sorted(list(Path(hq_path).iterdir()))
+        hq_sequences = sorted(list(Path(hq_path).iterdir())) if hq_path is not None else [None] * len(lq_sequences)
         of_sequences = sorted(list(Path(of_path).iterdir()))
 
         assert len(lq_sequences) == len(hq_sequences), "Number of low quality and high quality sequences must be equal."
@@ -243,10 +243,14 @@ class VideoMultiFrameOFDataset(Dataset):
 
         for lq_sequence_path, hq_sequence_path, of_sequence_path in zip(lq_sequences, hq_sequences, of_sequences):
             lq_frame_paths = sorted(list(lq_sequence_path.iterdir()))
-            hq_frame_paths = sorted(list(hq_sequence_path.iterdir()))
+            hq_frame_paths = sorted(list(hq_sequence_path.iterdir())) if hq_sequence_path is not None else [None] * len(lq_frame_paths)
 
             lq_frame_sequences = [lq_frame_paths[i : i + self.num_frames] for i in range(len(lq_frame_paths) - self.num_frames + 1)]
-            hq_frame_sequences = [hq_frame_paths[i + self.num_frames // 2] for i in range(len(hq_frame_paths) - self.num_frames + 1)]
+            hq_frame_sequences = (
+                [hq_frame_paths[i + self.num_frames // 2] for i in range(len(hq_frame_paths) - self.num_frames + 1)]
+                if hq_sequence_path is not None
+                else [None] * len(lq_frame_sequences)
+            )
 
             self.lq_paths.extend(lq_frame_sequences)
             self.hq_paths.extend(hq_frame_sequences)
@@ -298,7 +302,7 @@ class VideoMultiFrameOFDataset(Dataset):
         elif self.of_type == "random":
             of_down = torch.rand(2, lq_frames[0].shape[-2], lq_frames[0].shape[-1])
             of_up = torch.rand(2, lq_frames[0].shape[-2], lq_frames[0].shape[-1])
-        
+
         if self.of_type == "minus":
             of_down = -of_down
             of_up = -of_up
@@ -315,7 +319,7 @@ class VideoMultiFrameOFDataset(Dataset):
             of_up = of_up[..., wd // 2 : -wd // 2]
 
         lq_frames = torch.stack(lq_frames)
-        hq_frame = torchvision.io.read_image(str(hq_frame_path)) / 255.0
+        hq_frame = torchvision.io.read_image(str(hq_frame_path)) / 255.0 if self.hq_paths[0] is not None else torch.zeros_like(lq_frames[0])
         ofs = torch.stack([of_down, of_up])
 
         return {"LQ": lq_frames, "HQ": hq_frame, "OF": ofs}

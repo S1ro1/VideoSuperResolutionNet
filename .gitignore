@@ -7,5 +7,6 @@ BP
 wandb
 checkpoints
 scripts/RAFT
+scripts/examples/*/
 .vscode
 *.ipynb
