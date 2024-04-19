@@ -2,9 +2,9 @@
 
 This repository contains the code for my Bachelor's Thesis on Video Super Resolution using Optical Flow and Deformable Convolutions. The thesis is available TODO
 
-To install the required dependencies, run `pip install -r requirements.txt`. The code was tested with Python 3.10.12. After installing dependencies, installing mmcv is required with `mim install mmcv`
+To install the required dependencies, run `pip install -r requirements.txt`. The code was tested with Python 3.10.12 on Linux and Python 3.9.15 on Windows 11. After installing dependencies, installing mmcv is required with `mim install mmcv-full`
 
-Source code for training is available in the `src` directory, and the code for evaluation is available in the `eval` directory. To download the weights for the models run `bash download_weights.sh` which will create a Weights folder in the root folder. To download the weights for the RAFT model run `bash ./download_models.sh` inside `scripts/RAFT` directory, which will create a models folder inside.
+Source code for training is available in the `src` directory, and the code for evaluation is available in the `scripts` directory. To download the weights for the models run `bash download_weights.sh` which will create a Weights folder in the root folder. To download the weights for the RAFT model run `bash download_models.sh` inside `scripts/RAFT` directory, which will create a models folder inside.
 
 ## Evaluation
 
@@ -20,7 +20,7 @@ To evaluate the video run the following inside the `scripts` directory:
 $ python3 evaluate.py --root-path /path/to/output-folder --weights-path /path/to/weights.ckpt --output-path /path/to/output-folder
 ```
 
-Visualizations are disabled by default, such as saving the results to output folder. To enable visualizations, set `--visualize=True`.
+Visualizations are disabled by default, such as saving the results to output folder. To enable visualizations, set `--visualize`.
 
 
 ## Training

@@ -180,7 +180,7 @@ class SuperResolutionUnet(smp.Unet):
         out = self.upsample(out)
         return out
 
-    def forward(self, x: dict | torch.Tensor) -> torch.Tensor:
+    def forward(self, x) -> torch.Tensor:
         """Forward method
 
         Args:
