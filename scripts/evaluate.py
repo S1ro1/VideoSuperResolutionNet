@@ -62,7 +62,19 @@ def main():
 
         stacked_frames = np.hstack([bilinear, hq])
 
-        cv2.imshow("Combined Video", stacked_frames)
+        caption_height = 30
+        caption_image = np.zeros((caption_height, stacked_frames.shape[1], 3), dtype=np.uint8)
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.7
+        font_thickness = 2
+        text_color = (255, 255, 255)
+
+        cv2.putText(caption_image, "Bilinear 4x", (10, 20), font, font_scale, text_color, font_thickness)
+        cv2.putText(caption_image, "Learned 4x", (stacked_frames.shape[1] // 2 + 10, 20), font, font_scale, text_color, font_thickness)
+
+        image = np.vstack([stacked_frames, caption_image])
+        cv2.imshow("Biliear vs Learned", image)
 
         # Wait for 1 ms before moving to the next frame, and break the loop if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord("q"):
