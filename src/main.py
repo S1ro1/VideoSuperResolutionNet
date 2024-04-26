@@ -5,8 +5,8 @@ from lightning.pytorch.loggers.logger import Logger
 import lightning as L
 import argparse
 
-from src.video_lightning_module import VideoSRLightningModule
-from src.video_data_module import VideoLightningDataModule
+from video_lightning_module import VideoSRLightningModule
+from video_data_module import VideoLightningDataModule
 
 
 def parse_args() -> argparse.Namespace:

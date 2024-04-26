@@ -52,7 +52,7 @@ def main():
 
         if args.output_path:
             torchvision.utils.save_image(bilinear, f"{args.output_path}/{idx:06d}_bilinear.png")
-            torchvision.utils.save_image(hq, f"{args.output_path}/{idx:06d}_hq.png")
+            torchvision.utils.save_image(hq, f"{args.output_path}/{idx:06d}.png")
 
         if not args.visualize:
             continue
