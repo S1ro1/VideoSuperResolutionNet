@@ -1,14 +1,14 @@
 import sys
-
-sys.path.append("RAFT/core")
-
-import argparse
 import os
-import pathlib
-import torch
-import torchvision
-from RAFT.core.utils.utils import InputPadder
+
+sys.path.append(os.path.join("RAFT", "core"))
+
 from RAFT.core.raft import RAFT
+from RAFT.core.utils.utils import InputPadder
+import torchvision
+import torch
+import pathlib
+import argparse
 from tqdm import tqdm
 
 
@@ -30,7 +30,11 @@ def prepare_video(video_path: str, output_path: str, model: torch.nn.Module):
     os.makedirs(flow_output_path, exist_ok=True)
     model.eval()
 
-    vframes = (torchvision.io.read_video(video_path, output_format="TCHW", pts_unit="sec")[0]).float().to("cuda")
+    vframes = (
+        (torchvision.io.read_video(video_path, output_format="TCHW", pts_unit="sec")[0])
+        .float()
+        .to("cuda" if torch.cuda.is_available() else "cpu")
+    )
     iterator = tqdm(enumerate(zip(vframes[:], vframes[1:], vframes[2:]), start=1), desc="Processing video frames", total=len(vframes) - 2)
 
     for index, vframe in enumerate(vframes):
@@ -50,10 +54,15 @@ def main():
     args.small = False
     args.mixed_precision = False
 
-    model = torch.nn.DataParallel(RAFT(args), device_ids=args.devices)
-    model.load_state_dict(torch.load(args.raft_weights))
-
-    model = model.module
+    if torch.cuda.is_available():
+        model = torch.nn.DataParallel(RAFT(args), device_ids=args.devices)
+        model.load_state_dict(torch.load(args.raft_weights))
+        model = model.module
+    else:
+        model = RAFT(args)
+        weights = torch.load(args.raft_weights, map_location="cpu")
+        weights = {k.replace("module.", ""): v for k, v in weights.items()}
+        model.load_state_dict(weights)
 
     prepare_video(args.video_path, args.output_path, model)
 
