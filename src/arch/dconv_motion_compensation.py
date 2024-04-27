@@ -8,7 +8,14 @@ from mmcv.ops import DeformConv2d
 
 class DConvMotionCompensation(nn.Module):
     def __init__(
-        self, in_channels: int, out_channels: int, kernel_size: int = 3, num_scales: int = 3, deformable_groups=1, use_convs: bool = True
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        num_scales: int = 3,
+        deformable_groups=1,
+        use_convs: bool = True,
+        learnable_of: bool = False,
     ):
         """Deformable convolutional motion compensation block
 
@@ -19,13 +26,16 @@ class DConvMotionCompensation(nn.Module):
             num_scales (int, optional): Number of scales of preprocessing convolutions, only works if use_convs is True. Defaults to 3.
             deformable_groups (int, optional): Deformable groups. Defaults to 1.
             use_convs (bool, optional): Whether to use convolutions to preprocess features. Defaults to True.
+            learnable_of (bool, optional): Whether to process optical flow with learnable weights. Defaults to False.
         """
         super(DConvMotionCompensation, self).__init__()
         self.kernel_size = kernel_size
-        if use_convs:
-            self.convs = make_conv_relu(in_channels, in_channels, num_scales=num_scales)
-        else:
-            self.convs = nn.Identity()
+        self.learnable_of = learnable_of
+
+        self.convs = make_conv_relu(in_channels, in_channels, num_scales=num_scales) if use_convs else nn.Identity()
+        self.offset_conv = (
+            nn.Conv2d(2, 2 * kernel_size * kernel_size * deformable_groups, kernel_size=3, padding=1, stride=1) if learnable_of else None
+        )
 
         self.dconv = DeformConv2d(
             in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=1, deformable_groups=deformable_groups
@@ -72,6 +82,6 @@ class DConvMotionCompensation(nn.Module):
         """
         x = self.convs(x)
         x = x.contiguous()
-        of = self._adjust_optical_flow(of)
+        of = self.offset_conv(of) if self.learnable_of else self._adjust_optical_flow(of)
         out = self.dconv(x, of)
         return out
