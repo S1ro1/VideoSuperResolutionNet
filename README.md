@@ -28,7 +28,7 @@ Visualizations are disabled by default, such as saving the results to output fol
 To train the model, run the following inside the `src` directory:
 
 ```bash
-$ python3 train.py --config /path/to/config-file.json
+$ python3 main.py --config /path/to/config-file.json
 ```
 
 Example configuration files are available in the `configs` directory. Only logging with Weights and Biases is properly tested, and the code will not work without a valid Weights and Biases account. Untested logging with Tensorboard is available by setting `logger: Tensorboard` in the configuration file. Configuration files are plug-and-play and the only required change is to change devices and paths to the dataset.
