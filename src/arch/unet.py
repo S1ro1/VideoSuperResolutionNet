@@ -71,6 +71,7 @@ class SuperResolutionUnet(smp.Unet):
         use_skip_connections: bool = True,
         use_middle_frame: bool = True,
         use_previous: bool = False,
+        learnable_of: bool = False,
         *args,
         **kwargs,
     ):
@@ -112,6 +113,7 @@ class SuperResolutionUnet(smp.Unet):
                 use_convs=use_convs,
                 use_middle_frame=use_middle_frame,
                 use_previous=use_previous,
+                learnable_of=learnable_of,
             )
 
         self.segmentation_head = None

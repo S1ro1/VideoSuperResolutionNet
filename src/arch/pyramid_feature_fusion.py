@@ -20,6 +20,7 @@ class PyramidMotionCompensatedFeatureFusion(nn.Module):
         use_previous: bool = False,
         use_convs: bool = True,
         use_middle_frame: bool = True,
+        learnable_of: bool = False,
     ):
         """Pyramid motion compensation feature fusion block
 
@@ -55,6 +56,7 @@ class PyramidMotionCompensatedFeatureFusion(nn.Module):
                 center_frame_idx=center_frame_idx,
                 use_convs=use_convs,
                 use_middle_frame=use_middle_frame,
+                learnable_of=learnable_of,
             )
             if self.use_previous and level < self.num_levels - 1:
                 self.prev_fusions[level_name] = nn.Conv2d(2 * oc, oc, 3, 1, 1)

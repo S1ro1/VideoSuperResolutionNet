@@ -16,6 +16,7 @@ class MotionCompensatedFeatureFusion(nn.Module):
         num_scales: int = 3,
         center_frame_idx: int = 1,
         use_middle_frame: bool = True,
+        learnable_of: bool = False,
     ):
         """Motion compensation feature fusion block
 
@@ -42,7 +43,7 @@ class MotionCompensatedFeatureFusion(nn.Module):
             self.ref_convs = None
 
         self.neighboring_blocks = DConvMotionCompensation(
-            in_channels=in_channels, out_channels=mid_channels, num_scales=num_scales, use_convs=use_convs
+            in_channels=in_channels, out_channels=mid_channels, num_scales=num_scales, use_convs=use_convs, learnable_of=learnable_of
         )
         self.center_frame_idx = center_frame_idx
         self.use_middle_frame = use_middle_frame
