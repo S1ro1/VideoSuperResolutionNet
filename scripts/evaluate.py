@@ -25,6 +25,7 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     args = parse_args()
+    print(args.root_path)
     if args.visualize:
         import cv2
 
@@ -35,7 +36,13 @@ def main():
     module = VideoSRLightningModule.load_from_checkpoint(args.weights_path, map_location=device)
     print(f"Loaded model from {args.weights_path} to device {device}")
 
-    dataset = VideoMultiFrameOFDataset(args.root_path + "/frames", None, args.root_path + "/flows", num_frames=module.num_frames)
+    num_frames = module.hparams.get("num_frames")
+    if num_frames == 1:
+        from src.dataset import VideoSingleFrameDataset
+
+        dataset = VideoSingleFrameDataset(args.root_path + "/frames", args.root_path + "/frames")
+    else:
+        dataset = VideoMultiFrameOFDataset(args.root_path + "/frames", None, args.root_path + "/flows", num_frames=module.num_frames)
     print(f"Loaded dataset with {len(dataset)} samples")
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)
 
@@ -47,12 +54,16 @@ def main():
 
     for idx, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
         batch = {k: v.to(module.device) for k, v in batch.items()}
-        bilinear = torch.nn.functional.interpolate(batch["LQ"].squeeze(0)[1].unsqueeze(0), scale_factor=4, mode="bilinear").squeeze(0)
+        if num_frames == 1:
+            bilinear = torch.nn.functional.interpolate(batch["LQ"], scale_factor=4, mode="bilinear").squeeze(0)
+        else:
+            bilinear = torch.nn.functional.interpolate(batch["LQ"].squeeze(0)[1].unsqueeze(0), scale_factor=4, mode="bilinear").squeeze(0)
         hq = module.predict_step(batch, idx).squeeze(0)
 
         if args.output_path:
-            torchvision.utils.save_image(bilinear, f"{args.output_path}/{idx:06d}_bilinear.png")
+            os.makedirs(args.output_path, exist_ok=True)
             torchvision.utils.save_image(hq, f"{args.output_path}/{idx:06d}.png")
+            torchvision.utils.save_image(bilinear, f"{args.output_path}/{idx:06d}_bilinear.png")
 
         if not args.visualize:
             continue

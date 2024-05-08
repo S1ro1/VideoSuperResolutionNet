@@ -22,8 +22,8 @@ class VideoSequenceDataset(Dataset):
             lq_path (str): path to low quality frames
             hq_path (str): path to high quality frames
         """
-        self.lq_sequences = list(Path(lq_dir).iterdir())
-        self.hq_sequences = list(Path(hq_dir).iterdir())
+        self.lq_sequences = sorted(list(Path(lq_dir).iterdir()))
+        self.hq_sequences = sorted(list(Path(hq_dir).iterdir()))
         assert len(self.lq_sequences) == len(self.hq_sequences), "Number of low quality and high quality sequences must be equal."
 
     def __len__(self) -> int:
@@ -50,7 +50,7 @@ class VideoSequenceDataset(Dataset):
 
         lq_sequence_path = self.lq_sequences[idx]
         hq_sequence_path = self.hq_sequences[idx]
-        for lq_frame_path, hq_frame_path in zip(lq_sequence_path.iterdir(), hq_sequence_path.iterdir()):
+        for lq_frame_path, hq_frame_path in zip(sorted(list(lq_sequence_path.iterdir())), sorted(list(hq_sequence_path.iterdir()))):
             lq_frames.append(torchvision.io.read_image(str(lq_frame_path)) / 255.0)
             hq_frames.append(torchvision.io.read_image(str(hq_frame_path)) / 255.0)
 
@@ -75,8 +75,8 @@ class VideoSingleFrameDataset(Dataset):
             lq_path (str): path to low quality frames
             hq_path (str): path to high quality frames
         """
-        lq_sequences = list(Path(lq_path).iterdir())
-        hq_sequences = list(Path(hq_path).iterdir())
+        lq_sequences = sorted(list(Path(lq_path).iterdir()))
+        hq_sequences = sorted(list(Path(hq_path).iterdir()))
 
         assert len(lq_sequences) == len(hq_sequences), "Number of low quality and high quality sequences must be equal."
 
@@ -84,7 +84,7 @@ class VideoSingleFrameDataset(Dataset):
         self.hq_frames = []
 
         for lq_sequence_path, hq_sequence_path in zip(lq_sequences, hq_sequences):
-            for lq_frame_path, hq_frame_path in zip(lq_sequence_path.iterdir(), hq_sequence_path.iterdir()):
+            for lq_frame_path, hq_frame_path in zip(sorted(list(lq_sequence_path.iterdir())), sorted(list(hq_sequence_path.iterdir()))):
                 self.lq_frames.append(str(lq_frame_path))
                 self.hq_frames.append(str(hq_frame_path))
 
