@@ -1,3 +1,5 @@
+# Author: Matej Sirovatka
+
 from arch.utils import make_conv_relu
 
 

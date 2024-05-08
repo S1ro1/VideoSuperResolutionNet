@@ -1,3 +1,5 @@
+# Author: Matej Sirovatka
+
 import torch.nn as nn
 import torch.nn.functional as F
 

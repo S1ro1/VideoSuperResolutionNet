@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+
+# Taken from https://github.com/Lornatang/SRGAN-PyTorch/tree/main
 import math
 import os
 from typing import Any, cast, Dict, List, Union

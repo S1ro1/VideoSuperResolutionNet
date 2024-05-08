@@ -1,3 +1,5 @@
+# Author: Matej Sirovatka
+
 from arch.dconv_motion_compensation import DConvMotionCompensation
 from arch.utils import make_conv_relu
 

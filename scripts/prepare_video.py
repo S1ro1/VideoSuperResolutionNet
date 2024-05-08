@@ -1,3 +1,5 @@
+# Author: Matej Sirovatka
+
 import sys
 import os
 

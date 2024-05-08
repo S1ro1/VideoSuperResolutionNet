@@ -1,3 +1,5 @@
+# Author: Matej Sirovatka
+
 from typing import Literal
 import torch
 import torchvision

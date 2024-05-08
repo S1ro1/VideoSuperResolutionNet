@@ -1,3 +1,5 @@
+# Author: Matej Sirovatka
+
 from typing import Any, List, Optional
 import torch
 import lightning as L

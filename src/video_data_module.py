@@ -1,3 +1,5 @@
+# Author: Matej Sirovatka
+
 from typing import Any
 from torch.utils.data import DataLoader
 from lightning import LightningDataModule

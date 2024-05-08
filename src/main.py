@@ -1,3 +1,5 @@
+# Author: Matej Sirovatka
+
 import json
 from typing import Any, List
 from lightning.pytorch.callbacks import ModelCheckpoint

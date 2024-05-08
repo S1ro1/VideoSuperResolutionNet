@@ -1,3 +1,6 @@
+# Author: Matej Sirovatka
+# Adapted from: https://github.com/qubvel/segmentation_models.pytorch/tree/master/segmentation_models_pytorch/decoders/unet
+
 import segmentation_models_pytorch as smp
 import torch
 import inspect
@@ -11,7 +14,7 @@ from arch.upsample import UpsampleBlock
 from arch.utils import make_layer
 
 
-class UnetDecoderWithFirstSkip(nn.Module):
+class SRUnetDecoder(nn.Module):
     def __init__(
         self,
         encoder_channels,
@@ -117,7 +120,7 @@ class SuperResolutionUnet(smp.Unet):
             )
 
         self.segmentation_head = None
-        self.decoder = UnetDecoderWithFirstSkip(
+        self.decoder = SRUnetDecoder(
             self.encoder.out_channels,
             decoder_channels=decoder_channels,
             n_blocks=n_blocks,

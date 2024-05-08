@@ -1,3 +1,5 @@
+# Author: Matej Sirovatka
+
 from arch.motion_compensated_feature_fusion import MotionCompensatedFeatureFusion
 
 

@@ -1,3 +1,5 @@
+# Author: Matej Sirovatka
+
 import torch
 import torchvision
 import argparse
