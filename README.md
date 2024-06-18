@@ -33,10 +33,10 @@ $ python3 main.py --config /path/to/config-file.json
 
 Example configuration files are available in the `configs` directory. Only logging with Weights and Biases is properly tested, and the code will not work without a valid Weights and Biases account. Untested logging with Tensorboard is available by setting `logger: Tensorboard` in the configuration file. Configuration files are plug-and-play and the only required change is to change devices and paths to the dataset.
 
-Model was trained on [REDS](https://seungjunnah.github.io/Datasets/reds.html) dataset. The optical flow dataset can be then prepared by running the following inside the `src/scripts/RAFT` directory:
+Model was trained on [REDS](https://seungjunnah.github.io/Datasets/reds.html) dataset. The optical flow dataset can be then prepared by running the following inside the `scripts/RAFT` directory:
 
 ```bash
-$ python3 demo.py --model /path/to/raft-weights.pth --outdir /path/to/output-folder/{val,train} --dataset-path /path/to/REDS/{val,train}
+$ python3 prepare_dataset.py --model /path/to/raft-weights.pth --outdir /path/to/output-folder/{val,train} --dataset-path /path/to/REDS/{val,train}
 ```
 
 Script has to be run for both train and val datasets. The output folder will contain the optical flows for each sequence, and then this folder can be used as the dataset path in the configuration file as such:
