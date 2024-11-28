@@ -1,6 +1,6 @@
 # Video Super Resolution using Optical Flow and Deformable Convolutions
 
-This repository contains the code for my Bachelor's Thesis on Video Super Resolution using Optical Flow and Deformable Convolutions. The thesis is available TODO
+This repository contains the code for my Bachelor's Thesis on Video Super Resolution using Optical Flow and Deformable Convolutions. The thesis is available [here](https://www.vut.cz/www_base/zav_prace_soubor_verejne.php?file_id=266148)
 
 To install the required dependencies, run `pip install -r requirements.txt`. The code was tested with Python 3.10.12 on Linux and Python 3.9.15 on Windows 11. After installing dependencies, installing mmcv is required with `mim install mmcv-full`
 
